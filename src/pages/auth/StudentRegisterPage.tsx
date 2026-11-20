@@ -66,11 +66,8 @@ export function StudentRegisterPage() {
 
   return (
     <AuthLayout>
-      <AuthCard eyebrow="Student" title="Create your account" subtitle="Join live cohorts, track your progress and earn verified certificates.">
+      <AuthCard title="Create your account" subtitle="Join live cohorts, track your progress and earn verified certificates.">
         {(formError || authError) && <Alert>{formError ?? authError}</Alert>}
-
-        <GoogleButton onClick={() => void google()} busy={busy === 'google'} label="Sign up with Google" />
-        <OrDivider>or sign up with email</OrDivider>
 
         <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
           <TextField label="Full name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} error={show('name')} maxLength={100} />
@@ -94,9 +91,12 @@ export function StudentRegisterPage() {
           </PrimaryButton>
         </form>
 
+        <OrDivider>OR</OrDivider>
+        <GoogleButton onClick={() => void google()} busy={busy === 'google'} label="Continue with Google" />
+
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Already have an account?{' '}
-          <Link to="/student/login" className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">Sign in</Link>
+          <Link to="/login" className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">Sign in</Link>
         </p>
       </AuthCard>
     </AuthLayout>

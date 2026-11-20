@@ -13,7 +13,6 @@ const BatchesPage = lazy(() => import('./pages/public/BatchesPage').then((m) => 
 const InstructorsPage = lazy(() => import('./pages/public/InstructorsPage').then((m) => ({ default: m.InstructorsPage })));
 const AboutPage = lazy(() => import('./pages/public/AboutPage').then((m) => ({ default: m.AboutPage })));
 const ContactPage = lazy(() => import('./pages/public/ContactPage').then((m) => ({ default: m.ContactPage })));
-const LoginChooserPage = lazy(() => import('./pages/auth/LoginChooserPage').then((m) => ({ default: m.LoginChooserPage })));
 const StudentLoginPage = lazy(() => import('./pages/auth/StudentLoginPage').then((m) => ({ default: m.StudentLoginPage })));
 const StudentRegisterPage = lazy(() => import('./pages/auth/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -46,14 +45,14 @@ export default function App() {
                 <Route path="/instructors" element={<InstructorsPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
-                <Route path="/login" element={<LoginChooserPage />} />
-                <Route path="/student/login" element={<StudentLoginPage />} />
-                <Route path="/student/register" element={<StudentRegisterPage />} />
+                <Route path="/login" element={<StudentLoginPage />} />
+                <Route path="/student/login" element={<Navigate to="/login" replace />} />
+                <Route path="/student/register" element={<Navigate to="/register" replace />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/staff/login" element={<StaffLoginPage />} />
                 <Route path="/staff/security" element={<StaffSecurityPage />} />
-                <Route path="/register" element={<Navigate to="/student/register" replace />} />
+                <Route path="/register" element={<StudentRegisterPage />} />
                 <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/terms" element={<LegalPage type="terms" />} />
                 <Route path="/refund" element={<LegalPage type="refund" />} />
@@ -63,7 +62,7 @@ export default function App() {
                 <Route
                   path="/student/settings/security"
                   element={
-                    <ProtectedRoute allowedRoles={["student"]} loginPath="/student/login">
+                    <ProtectedRoute allowedRoles={["student"]} loginPath="/login">
                       <StudentSecurityPage />
                     </ProtectedRoute>
                   }
@@ -73,7 +72,7 @@ export default function App() {
                 <Route
                   path="/student/*"
                   element={
-                    <ProtectedRoute allowedRoles={["student"]} loginPath="/student/login" requireVerifiedEmail>
+                    <ProtectedRoute allowedRoles={["student"]} loginPath="/login" requireVerifiedEmail>
                       <StudentDashboard />
                     </ProtectedRoute>
                   }
@@ -93,7 +92,7 @@ export default function App() {
                 <Route
                   path="/admin/*"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']} loginPath="/staff/login?as=admin">
+                    <ProtectedRoute allowedRoles={['admin']} loginPath="/staff/login">
                       <AdminDashboard />
                     </ProtectedRoute>
                   }

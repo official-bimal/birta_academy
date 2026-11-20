@@ -44,11 +44,8 @@ export function StudentLoginPage() {
 
   return (
     <AuthLayout>
-      <AuthCard eyebrow="Student" title="Sign in" subtitle="Welcome back. Pick up where you left off.">
+      <AuthCard title="Welcome back" subtitle="Sign in to continue your learning.">
         {authError && <Alert>{authError}</Alert>}
-
-        <GoogleButton onClick={() => void google()} busy={busy === 'google'} />
-        <OrDivider>or use email</OrDivider>
 
         <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
           <TextField label="Email" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} error={emailError} />
@@ -67,14 +64,14 @@ export function StudentLoginPage() {
           </PrimaryButton>
         </form>
 
+        <OrDivider>OR</OrDivider>
+        <GoogleButton onClick={() => void google()} busy={busy === 'google'} />
+
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          New to Birta Academy?{' '}
-          <Link to="/student/register" className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">
+          New student?{' '}
+          <Link to="/register" className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">
             Create an account
           </Link>
-        </p>
-        <p className="text-xs text-slate-500">
-          Instructor or admin? <Link to="/login" className="underline">Choose your sign-in</Link>
         </p>
       </AuthCard>
     </AuthLayout>

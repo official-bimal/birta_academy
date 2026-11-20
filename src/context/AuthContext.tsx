@@ -21,7 +21,7 @@ import { auth, googleProvider, parseFirestoreErrorMessage } from '../lib/firebas
 import { getUserProfile } from '../lib/firestoreService';
 import { apiFetch, ApiError } from '../lib/api';
 import { describeFirebaseAuthError, describeStudentSignInFailure } from '../lib/authErrors';
-import { claimToAppRole, isExpectedStaffRole, type AppRole } from '../lib/roles';
+import { claimToAppRole, isStaffClaim, type AppRole } from '../lib/roles';
 import type { UserProfile } from '../types';
 
 export type StaffSignInResult =
@@ -57,9 +57,9 @@ interface AuthContextValue {
   resendVerification: () => Promise<ActionResult>;
   /** Re-reads the user from Firebase (after verifying email, linking a provider, ...). */
   reloadUser: () => Promise<void>;
-  /** Staff: the chosen form only states which role is EXPECTED; the server-set claim decides. */
-  staffSignIn: (email: string, password: string, expected: 'admin' | 'instructor', remember: boolean) => Promise<StaffSignInResult>;
-  completeStaffMfa: (resolver: MultiFactorResolver, code: string, expected: 'admin' | 'instructor') => Promise<StaffSignInResult>;
+  /** Staff: one form for instructors and admins. The server-set role claim decides who they are and where they go. */
+  staffSignIn: (email: string, password: string, remember: boolean) => Promise<StaffSignInResult>;
+  completeStaffMfa: (resolver: MultiFactorResolver, code: string) => Promise<StaffSignInResult>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   isAdmin: boolean;
@@ -273,11 +273,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setVersion((v) => v + 1);
   }, []);
 
-  const finishStaff = useCallback(async (user: User, expected: 'admin' | 'instructor'): Promise<StaffSignInResult> => {
+  const finishStaff = useCallback(async (user: User): Promise<StaffSignInResult> => {
     const tokenResult = await user.getIdTokenResult(true);
     const role = claimToAppRole(tokenResult.claims.role);
-    // The form only states the EXPECTED role. Students, unknown accounts, and staff using the wrong form are refused.
-    if (!isExpectedStaffRole(tokenResult.claims.role, expected)) {
+    // Only a server-set staff claim is accepted here. Students and unknown accounts are refused with a generic message.
+    if (!isStaffClaim(tokenResult.claims.role)) {
       await signOut(auth);
       setAuthError(STAFF_LOGIN_ERROR);
       return { status: 'error' };
@@ -287,13 +287,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const staffSignIn = useCallback(
-    async (email: string, password: string, expected: 'admin' | 'instructor', remember: boolean): Promise<StaffSignInResult> => {
+    async (email: string, password: string, remember: boolean): Promise<StaffSignInResult> => {
       setAuthError(null);
       flow.current = true;
       try {
         await applyPersistence(remember);
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-        return await finishStaff(cred.user, expected);
+        return await finishStaff(cred.user);
       } catch (error) {
         if ((error as { code?: string }).code === 'auth/multi-factor-auth-required') {
           return { status: 'mfa', resolver: getMultiFactorResolver(auth, error as never) };
@@ -310,7 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const completeStaffMfa = useCallback(
-    async (resolver: MultiFactorResolver, code: string, expected: 'admin' | 'instructor'): Promise<StaffSignInResult> => {
+    async (resolver: MultiFactorResolver, code: string): Promise<StaffSignInResult> => {
       setAuthError(null);
       flow.current = true;
       try {
@@ -318,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!hint) throw new Error('No authenticator enrolled');
         const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code.trim());
         const cred = await resolver.resolveSignIn(assertion);
-        return await finishStaff(cred.user, expected);
+        return await finishStaff(cred.user);
       } catch {
         setAuthError('That code was not accepted. Try the current code from your authenticator app.');
         return { status: 'error' };

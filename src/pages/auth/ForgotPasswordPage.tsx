@@ -19,7 +19,7 @@ export function ForgotPasswordPage() {
     if (!isValidEmail(email)) return setError('Enter a valid email address.');
     setError(null);
     setBusy(true);
-    await sendReset(email, forStaff ? '/staff/login' : '/student/login');
+    await sendReset(email, forStaff ? '/staff/login' : '/login');
     setBusy(false);
     setSent(true);
   };
@@ -38,7 +38,7 @@ export function ForgotPasswordPage() {
           </form>
         )}
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          <Link to={forStaff ? '/staff/login' : '/student/login'} className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">
+          <Link to={forStaff ? '/staff/login' : '/login'} className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">
             Back to sign in
           </Link>
         </p>

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, KeyRound, ShieldCheck } from 'lucide-react';
-import { Alert, AuthLayout, PasswordField, PrimaryButton } from '../../components/auth/AuthParts';
+import { Alert, PasswordField, PrimaryButton, SettingsLayout } from '../../components/auth/AuthParts';
 import { useAuth } from '../../context/AuthContext';
 import { addPasswordToAccount, changePassword, linkGoogleToAccount, unlinkProvider } from '../../lib/accountLinking';
 import { checkPassword } from '../../lib/passwordPolicy';
@@ -67,7 +67,7 @@ export function StudentSecurityPage() {
   };
 
   return (
-    <AuthLayout>
+    <SettingsLayout>
       <div className="space-y-5">
         <Link to="/student" className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white">
           <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Back to dashboard
@@ -157,6 +157,6 @@ export function StudentSecurityPage() {
           </button>
         </Section>
       </div>
-    </AuthLayout>
+    </SettingsLayout>
   );
 }

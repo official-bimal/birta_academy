@@ -4,13 +4,15 @@
 
 | Type | How it is created | Sign-in | Lands on |
 |---|---|---|---|
-| STUDENT | Public: Google, or email + password at `/student/register` | `/student/login` (Google or email/password) | `/student` |
-| INSTRUCTOR | Super Admin invites (name + email). Server creates the identity with an unusable random password and returns a one-time activation link; the instructor sets their own password | `/staff/login?as=instructor` (email + password only) | `/instructor` |
-| SUPER_ADMIN | `npm run bootstrap:admin` (trusted, local, refuses if one exists) | `/staff/login?as=admin` (email + password, MFA) | `/admin` |
+| STUDENT | Public: Google, or email + password at `/register` | `/login` (email + password, or Google) | `/student` |
+| INSTRUCTOR | Super Admin invites (name + email). Server creates the identity with an unusable random password and returns a one-time activation link; the instructor sets their own password | `/staff/login` (email + password only) | `/instructor` |
+| SUPER_ADMIN | `npm run bootstrap:admin` (trusted, local, refuses if one exists) | `/staff/login` (email + password, MFA) | `/admin` |
 
-`/login` is only a chooser. Choosing a card (or a staff tab) selects which form is shown. The destination and permissions come from the role claim the **server** set; the staff form only states which role is *expected* and a mismatch is refused (`isExpectedStaffRole`).
+There are no role-selection cards. `/login` is the student sign-in; instructors/admins use the discreet "Instructor / Staff login" link in the page footer. The staff form has no role picker: the server-set role claim decides who the person is and where they go, and non-staff accounts are refused generically.
 
-Routes: `/login`, `/register` (-> `/student/register`), `/student/login`, `/student/register`, `/staff/login`, `/forgot-password[?for=staff]`, `/verify-email`, `/student/settings/security`, `/staff/security` (TOTP enrolment).
+All auth pages share one split layout (`AuthLayout` in `src/components/auth/AuthParts.tsx`): branded panel on the left (desktop), form on the right, compact top bar on mobile. It has its own header so content can never sit behind the site navbar.
+
+Routes: `/login`, `/register`, `/staff/login`, `/forgot-password[?for=staff]`, `/verify-email`, `/student/settings/security`, `/staff/security` (TOTP enrolment). `/student/login` and `/student/register` redirect to `/login` and `/register`.
 
 ## How roles are assigned
 

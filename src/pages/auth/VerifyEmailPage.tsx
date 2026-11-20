@@ -31,7 +31,7 @@ export function VerifyEmailPage() {
   }, [emailVerified, profile, navigate]);
 
   if (loading) return null;
-  if (!firebaseUser) return <Navigate to="/student/login" replace />;
+  if (!firebaseUser) return <Navigate to="/login" replace />;
   if (profile && profile.role !== 'student') return <Navigate to="/login" replace />;
 
   const resend = async () => {
@@ -70,7 +70,7 @@ export function VerifyEmailPage() {
         </div>
         <p className="text-xs text-slate-500">
           Wrong address?{' '}
-          <button type="button" onClick={() => void logout().then(() => navigate('/student/register'))} className="underline">
+          <button type="button" onClick={() => void logout().then(() => navigate('/register'))} className="underline">
             Sign out and start again
           </button>
           . Questions? <Link to="/contact" className="underline">Contact the academy</Link>.

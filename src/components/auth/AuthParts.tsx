@@ -1,29 +1,107 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, Check, CheckCircle2, Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-react';
 import { PublicLayout } from '../PublicLayout';
+import { BrandLogo } from '../BrandLogo';
+import { useTheme } from '../../context/ThemeContext';
 import { checkPassword } from '../../lib/passwordPolicy';
 
 export const inputClass =
   'w-full px-3.5 py-2.5 rounded-lg border bg-white dark:bg-slate-950 text-sm text-slate-950 dark:text-white placeholder:text-slate-400 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 disabled:opacity-60';
 
-export function AuthLayout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+const PANEL_POINTS = [
+  'Live, instructor-led classes in Nepal time',
+  'Recorded lessons, resources and assignments',
+  'Certificates with public verification',
+];
+
+/**
+ * Premium split layout used by every sign-in / sign-up page.
+ * Desktop: branded panel (left) + form (right). Mobile: single column with a compact top bar.
+ * It has its own header, so nothing can be clipped behind the site navbar.
+ */
+export function AuthLayout({ children }: { children: ReactNode; wide?: boolean }) {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+      <aside className="hidden lg:flex flex-col justify-between bg-brand-600 text-white px-12 xl:px-16 py-12">
+        <Link to="/" aria-label="Birta Academy home" className="self-start rounded-md focus-visible:outline-white">
+          <img src="/brand/birta-logo-source.jpg" alt="Birta Academy" width={240} height={240} className="w-52 xl:w-60 h-auto -ml-6 xl:-ml-8 -mt-4 select-none" draggable={false} />
+        </Link>
+        <div className="max-w-md">
+          <h2 className="font-display text-3xl xl:text-4xl font-bold tracking-tight leading-[1.15]">Learn skills. Build your future.</h2>
+          <p className="mt-4 text-sm xl:text-base text-white/80 leading-relaxed">
+            Hybrid training for ambitious learners in Nepal and beyond: live classes with real instructors, plus everything you need to study at your own pace.
+          </p>
+          <ul className="mt-8 space-y-3">
+            {PANEL_POINTS.map((t) => (
+              <li key={t} className="flex items-start gap-3 text-sm text-white/90">
+                <Check className="w-4 h-4 mt-0.5 shrink-0 text-white" aria-hidden="true" />
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-xs text-white/70">© {new Date().getFullYear()} Birta Academy · Kathmandu, Nepal</p>
+      </aside>
+
+      <div className="flex min-h-screen flex-col">
+        <header className="flex items-center justify-between gap-4 px-5 sm:px-8 h-16 shrink-0">
+          <Link to="/" className="lg:hidden rounded-md" aria-label="Birta Academy home">
+            <BrandLogo size={32} withWordmark />
+          </Link>
+          <Link to="/" className="hidden lg:inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white">
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Back to website
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/" className="lg:hidden text-sm text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white">Website</Link>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-start sm:items-center justify-center px-5 sm:px-8 py-6 sm:py-10">
+          <div className="w-full max-w-[26rem]">{children}</div>
+        </main>
+
+        <footer className="px-5 sm:px-8 py-5 text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <span className="inline-flex gap-4">
+            <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white">Terms</Link>
+            <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white">Privacy</Link>
+          </span>
+          <Link to="/staff/login" className="hover:text-slate-900 dark:hover:text-white underline-offset-2 hover:underline">Instructor / Staff login</Link>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+/** Regular site-chrome layout for signed-in account pages (e.g. security settings). */
+export function SettingsLayout({ children }: { children: ReactNode }) {
   return (
     <PublicLayout>
-      <div className={`${wide ? 'max-w-4xl' : 'max-w-md'} mx-auto px-5 sm:px-6 py-12 lg:py-20`}>{children}</div>
+      <div className="max-w-md mx-auto px-5 sm:px-6 py-12 lg:py-16">{children}</div>
     </PublicLayout>
   );
 }
 
+/** Flat form block (no boxed card): heading, optional subtitle, then the form. */
 export function AuthCard({ eyebrow, title, subtitle, children }: { eyebrow?: string; title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <div className="p-6 sm:p-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6">
+    <section className="space-y-6">
       <header>
         {eyebrow && <p className="text-xs font-medium text-brand-700 dark:text-brand-400">{eyebrow}</p>}
-        <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-slate-950 dark:text-white">{title}</h1>
+        <h1 className="mt-1.5 font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white">{title}</h1>
         {subtitle && <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{subtitle}</p>}
       </header>
       {children}
-    </div>
+    </section>
   );
 }
 
