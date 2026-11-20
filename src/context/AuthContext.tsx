@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   getMultiFactorResolver,
   onAuthStateChanged,
@@ -12,6 +12,7 @@ import {
 import { auth, googleProvider, parseFirestoreErrorMessage } from '../lib/firebase';
 import { getUserProfile } from '../lib/firestoreService';
 import { apiFetch, ApiError } from '../lib/api';
+import { describeStudentSignInFailure } from '../lib/authErrors';
 import { claimToAppRole, isStaffClaim, type AppRole } from '../lib/roles';
 import type { UserProfile } from '../types';
 
@@ -67,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  /** true while the Google popup flow is finalising the account, so the auth listener does not repeat it */
+  const popupFlow = useRef(false);
 
   const resolveSession = useCallback(async (user: User): Promise<UserProfile | null> => {
     let tokenResult = await user.getIdTokenResult();
@@ -83,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
+      if (popupFlow.current) return;
       if (!user) {
         setProfile(null);
         setLoading(false);
@@ -101,18 +105,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     setAuthError(null);
+    popupFlow.current = true;
     try {
       const credential = await signInWithPopup(auth, googleProvider);
       try {
         await apiFetch('/auth/student-init', { method: 'POST' });
       } catch (error) {
+        // Developer-facing diagnostics only: status and code, never tokens or account details.
+        console.error('[auth] student sign-in finalisation failed', {
+          status: error instanceof ApiError ? error.status : undefined,
+          code: error instanceof ApiError ? error.code : 'UNKNOWN',
+        });
         await signOut(auth);
         setProfile(null);
-        setAuthError(
-          error instanceof ApiError && error.code === 'USE_STAFF_LOGIN'
-            ? STUDENT_STAFF_MESSAGE
-            : 'We could not complete sign-in. Please try again.'
-        );
+        setAuthError(describeStudentSignInFailure(error));
         return null;
       }
       const tokenResult = await credential.user.getIdTokenResult(true);
@@ -123,14 +129,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
       const synced = await buildProfile(credential.user, role);
+      setFirebaseUser(credential.user);
       setProfile(synced);
       return synced;
     } catch (error) {
       const code = (error as { code?: string }).code;
       if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-        setAuthError(parseFirestoreErrorMessage(error));
+        console.error('[auth] Google popup failed', { code });
+        setAuthError(
+          code === 'auth/unauthorized-domain'
+            ? 'This site is not yet authorised for Google sign-in. Please contact the academy.'
+            : code === 'auth/popup-blocked'
+            ? 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.'
+            : 'We could not start Google sign-in. Please try again.'
+        );
       }
       return null;
+    } finally {
+      popupFlow.current = false;
+      setLoading(false);
     }
   }, []);
 

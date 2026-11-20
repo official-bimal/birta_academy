@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminApp, adminDb } from './firebaseAdmin.ts';
+import { adminApp, adminDb, credentialsConfigured } from './firebaseAdmin.ts';
 import {
   canResubmit,
   evaluateCertificateEligibility,
@@ -111,7 +111,14 @@ async function audit(actor: DecodedIdToken, action: string, targetId: string, su
   });
 }
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, adminCredentials: credentialsConfigured }));
+
+// Every other API route needs the Firebase Admin SDK. Fail fast with a clear, non-sensitive signal
+// instead of hanging on a credentials lookup and returning an opaque 500.
+app.use('/api', (_req, res, next) => {
+  if (credentialsConfigured) return next();
+  res.status(503).json({ error: 'SERVICE_NOT_CONFIGURED' });
+});
 
 /**
  * Student sign-in finalisation. The browser has just signed in with Google; this trusted endpoint
@@ -792,4 +799,13 @@ if (fs.existsSync(path.join(distDir, 'index.html'))) {
 }
 
 const port = Number(process.env.PORT || 8787);
-app.listen(port, () => console.log(`Birta API listening on :${port} (admin MFA required: ${REQUIRE_ADMIN_MFA})`));
+app.listen(port, () => {
+  console.log(`Birta API listening on :${port} (admin MFA required: ${REQUIRE_ADMIN_MFA})`);
+  if (!credentialsConfigured) {
+    console.warn(
+      '\n[birta-api] Firebase Admin credentials are NOT configured. Student sign-in, enrollment and all staff actions\n' +
+        'will return 503 until you set GOOGLE_APPLICATION_CREDENTIALS (path to a service-account JSON file) or\n' +
+        'FIREBASE_SERVICE_ACCOUNT_JSON in .env. Run `npm run check:admin` to verify.\n'
+    );
+  }
+});

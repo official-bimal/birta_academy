@@ -11,7 +11,9 @@
     "lint": "tsc --noEmit",
     "server": "tsx server/index.ts",
     "bootstrap:admin": "tsx scripts/bootstrap-super-admin.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:all": "concurrently -k -n web,api \"npm run dev\" \"npm run server\"",
+    "check:admin": "tsx scripts/check-admin.ts"
   },
   "dependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
@@ -39,6 +41,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^10.0.7",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",

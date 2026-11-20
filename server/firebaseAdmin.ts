@@ -17,6 +17,13 @@ function credential() {
   return json ? cert(JSON.parse(json)) : applicationDefault();
 }
 
+/** True when Admin SDK credentials are configured (without ever reading their contents). */
+export const credentialsConfigured: boolean = (() => {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return true;
+  const file = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  return Boolean(file && fs.existsSync(file));
+})();
+
 export const adminApp =
   getApps()[0] ?? initializeApp({ credential: credential(), projectId: config.projectId });
 

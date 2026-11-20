@@ -24,6 +24,19 @@ Nothing here has been run against live infrastructure. Do each step deliberately
    Open the printed one-time link, set a password, sign in at `/staff/login`, then enrol an authenticator at `/staff/security` and sign in again.
 7. **Legacy data**: remove any old `meetingUrl` fields from existing `liveSessions` documents; the `admins` collection is retired.
 
+## Local development (sign-in needs the API running)
+
+Student Google sign-in finishes on the trusted API (it assigns the STUDENT role), so the web app and API must both run:
+
+```
+# .env (git-ignored) -- path to a service-account JSON that exists on disk
+GOOGLE_APPLICATION_CREDENTIALS=C:\secrets\birta-service-account.json
+npm run check:admin   # PASS = Auth + Firestore reachable
+npm run dev:all       # web (vite) + API (:8787); vite proxies /api to it
+```
+
+If sign-in says "temporarily unavailable", check `http://localhost:<vite-port>/api/health`: 502 = API not running, `adminCredentials:false` = credentials missing.
+
 ## Environment variables (server)
 
 | Variable | Purpose |
