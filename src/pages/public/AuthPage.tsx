@@ -58,7 +58,7 @@ export function AuthPage({ mode }: AuthPageProps) {
             type="button"
             disabled={signingIn || loading}
             onClick={() => void handleGoogleSignIn()}
-            className="w-full py-3 px-4 rounded-lg bg-slate-950 dark:bg-brand-600 text-white text-sm font-semibold hover:bg-slate-800 dark:hover:bg-brand-500 disabled:opacity-50 transition-colors"
+            className="w-full py-3 px-4 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50 transition-colors"
           >
             {signingIn ? 'Connecting with Google...' : 'Continue with Google'}
           </button>
