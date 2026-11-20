@@ -2,14 +2,16 @@ import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { homeRouteForRole } from '../lib/roles';
 import type { UserRole } from '../types';
 
 interface ProtectedRouteProps {
   allowedRoles: UserRole[];
+  loginPath?: string;
   children: React.ReactNode;
 }
 
-export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles, loginPath = '/login', children }: ProtectedRouteProps) {
   const { profile, loading } = useAuth();
 
   if (loading) {
@@ -23,7 +25,7 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
   }
 
   if (!profile) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   if (!allowedRoles.includes(profile.role)) {
@@ -42,10 +44,10 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
           </p>
           <div className="pt-2 flex items-center gap-3">
             <Link
-              to="/student"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
+              to={homeRouteForRole(profile.role)}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white"
             >
-              Go to Student Dashboard
+              Go to your dashboard
             </Link>
             <Link
               to="/"

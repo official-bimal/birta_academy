@@ -14,6 +14,7 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
+import { InviteInstructorPanel } from '../../components/InviteInstructorPanel';
 import { DashboardShell, type DashboardNavItem } from '../../components/DashboardShell';
 import { useAuth } from '../../context/AuthContext';
 import { useCatalog } from '../../context/CatalogContext';
@@ -22,7 +23,6 @@ import {
   adminReviewEnrollment,
   adminToggleCertificateStatus,
   adminUpdateInquiryStatus,
-  adminUpdateUserRole,
   deleteBatch,
   deleteCategory,
   deleteCourse,
@@ -439,21 +439,6 @@ export function AdminDashboard() {
       });
       await loadAdminData();
       setNotice(`Updated enrollment for ${enr.studentName} (${decision}).`);
-    } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleRoleChange = async (targetUser: UserProfile, newRole: UserRole) => {
-    if (!profile) return;
-    setBusyAction(targetUser.uid);
-    setErrorMsg(null);
-    try {
-      await adminUpdateUserRole({ targetUser, newRole, actor: profile });
-      await loadAdminData();
-      setNotice(`Updated ${targetUser.email} role to ${newRole}.`);
     } catch (err) {
       setErrorMsg(parseFirestoreErrorMessage(err));
     } finally {
@@ -1184,6 +1169,7 @@ export function AdminDashboard() {
           {/* INSTRUCTORS */}
           {activeTab === 'instructors' && (
             <div className="space-y-6">
+              <InviteInstructorPanel />
               <form
                 onSubmit={handleSaveInstructor}
                 className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4"
@@ -1254,7 +1240,7 @@ export function AdminDashboard() {
                       <th className="py-3 px-5">User</th>
                       <th className="py-3 px-5">City / Phone</th>
                       <th className="py-3 px-5">Role</th>
-                      <th className="py-3 px-5 text-right">Update Role</th>
+                      <th className="py-3 px-5 text-right">Access</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1273,17 +1259,7 @@ export function AdminDashboard() {
                           {u.role}
                         </td>
                         <td className="py-3.5 px-5 text-right">
-                          <select
-                            aria-label={`Role for ${u.email}`}
-                            disabled={busyAction === u.uid || u.uid === profile?.uid}
-                            value={u.role}
-                            onChange={(e) => void handleRoleChange(u, e.target.value as UserRole)}
-                            className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 disabled:opacity-50"
-                          >
-                            <option value="student">Student</option>
-                            <option value="instructor">Instructor</option>
-                            <option value="admin">Admin</option>
-                          </select>
+                          <span className="text-xs text-slate-500">Managed by server</span>
                         </td>
                       </tr>
                     ))}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { PublicLayout } from '../../components/PublicLayout';
+import { homeRouteForRole } from '../../lib/roles';
 import { useAuth } from '../../context/AuthContext';
 
 interface AuthPageProps {
@@ -14,26 +15,14 @@ export function AuthPage({ mode }: AuthPageProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && profile) {
-      if (profile.role === 'admin') {
-        navigate('/admin', { replace: true });
-      } else if (profile.role === 'instructor') {
-        navigate('/instructor', { replace: true });
-      } else {
-        navigate('/student', { replace: true });
-      }
-    }
+    if (!loading && profile) navigate(homeRouteForRole(profile.role === 'student' ? 'student' : profile.role === 'admin' ? 'admin' : 'instructor'), { replace: true });
   }, [loading, profile, navigate]);
 
   const handleGoogleSignIn = async () => {
     setSigningIn(true);
     try {
       const synced = await signInWithGoogle();
-      if (synced) {
-        if (synced.role === 'admin') navigate('/admin', { replace: true });
-        else if (synced.role === 'instructor') navigate('/instructor', { replace: true });
-        else navigate('/student', { replace: true });
-      }
+      if (synced) navigate(homeRouteForRole(synced.role), { replace: true });
     } finally {
       setSigningIn(false);
     }

@@ -49,14 +49,14 @@ service cloud.firestore {
       return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
     }
 
-    function isBootstrappedAdmin() {
-      return isVerified() && request.auth.token.email == 'official.bimalb@gmail.com';
+    // Roles are Firebase custom claims set only by the trusted server (Admin SDK).
+    // Clients cannot grant or change them.
+    function hasRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
     }
 
     function isAdmin() {
-      return isBootstrappedAdmin() || (
-        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+      return hasRole('SUPER_ADMIN');
     }
 
     function isApprovedEnrolledInBatch(batchId) {
@@ -66,7 +66,7 @@ service cloud.firestore {
     }
 
     function isBatchInstructor(batchId) {
-      return isVerified()
+      return hasRole('INSTRUCTOR')
         && exists(/databases/$(database)/documents/batches/$(batchId))
         && get(/databases/$(database)/documents/batches/$(batchId)).data.instructorId == request.auth.uid;
     }
@@ -419,16 +419,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow create: if isVerified()
-        && isValidId(userId)
-        && isValidUserProfile(incoming())
-        && incoming().uid == userId
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
-        && (
-          (isOwner(userId) && incoming().role == 'student') ||
-          isAdmin()
-        );
+      // Profiles (and roles) are created by the trusted server only.
+      allow create: if false;
       allow update: if isVerified()
         && isValidId(userId)
         && isValidUserProfile(incoming())
@@ -437,23 +429,14 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'city', 'bio', 'updatedAt'])) ||
-          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'city', 'bio', 'role', 'updatedAt']))
+          (isAdmin() && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'city', 'bio', 'updatedAt']))
         );
       allow delete: if false;
     }
 
-    // 2. Admins RBAC Lookup
+    // 2. Legacy admins lookup: retired. Roles are custom claims; no client access.
     match /admins/{userId} {
-      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
-      allow list: if isAdmin();
-      allow create: if isAdmin()
-        && isValidId(userId)
-        && isValidAdminRecord(incoming())
-        && incoming().uid == userId
-        && incoming().grantedBy == request.auth.uid
-        && incoming().createdAt == request.time;
-      allow update: if false;
-      allow delete: if isAdmin() && isValidId(userId) && userId != request.auth.uid;
+      allow read, write: if false;
     }
 
     // 3. Categories (Public Catalog Read, Admin Write)

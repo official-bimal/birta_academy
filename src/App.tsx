@@ -14,6 +14,8 @@ import { AboutPage } from './pages/public/AboutPage';
 import { ContactPage } from './pages/public/ContactPage';
 import { AuthPage } from './pages/public/AuthPage';
 import { VerifyCertificatePage } from './pages/public/VerifyCertificatePage';
+import { StaffLoginPage } from './pages/staff/StaffLoginPage';
+import { StaffSecurityPage } from './pages/staff/StaffSecurityPage';
 import { LegalPage } from './pages/public/LegalPage';
 
 import { StudentDashboard } from './pages/student/StudentDashboard';
@@ -38,6 +40,8 @@ export default function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/login" element={<AuthPage mode="login" />} />
+                <Route path="/staff/login" element={<StaffLoginPage />} />
+                <Route path="/staff/security" element={<StaffSecurityPage />} />
                 <Route path="/register" element={<Navigate to="/login" replace />} />
                 <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/terms" element={<LegalPage type="terms" />} />
@@ -49,7 +53,7 @@ export default function App() {
                 <Route
                   path="/student/*"
                   element={
-                    <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
+                    <ProtectedRoute allowedRoles={['student']}>
                       <StudentDashboard />
                     </ProtectedRoute>
                   }
@@ -59,7 +63,7 @@ export default function App() {
                 <Route
                   path="/instructor/*"
                   element={
-                    <ProtectedRoute allowedRoles={['instructor', 'admin']}>
+                    <ProtectedRoute allowedRoles={['instructor', 'admin']} loginPath="/staff/login">
                       <InstructorDashboard />
                     </ProtectedRoute>
                   }
@@ -69,7 +73,7 @@ export default function App() {
                 <Route
                   path="/admin/*"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin']} loginPath="/staff/login">
                       <AdminDashboard />
                     </ProtectedRoute>
                   }

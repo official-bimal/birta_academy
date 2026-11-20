@@ -12,7 +12,6 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import {
-  BOOTSTRAPPED_ADMIN_EMAIL,
   db,
   handleFirestoreError,
   OperationType,
@@ -117,56 +116,14 @@ export async function listAuditLogs(): Promise<AuditLog[]> {
 // ---------------------------------------------------------------------------
 // User Profiles & RBAC Bootstrap
 // ---------------------------------------------------------------------------
-export async function syncUserProfileOnLogin(user: User): Promise<UserProfile> {
-  const userPath = `users/${user.uid}`;
-  const isBootstrapped =
-    Boolean(user.emailVerified) &&
-    user.email?.toLowerCase() === BOOTSTRAPPED_ADMIN_EMAIL.toLowerCase();
-
+/** Read-only. Profiles and roles are created by the trusted server, never by the browser. */
+export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  const path = `users/${uid}`;
   try {
-    const userRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userRef);
-
-    // Check admins lookup collection
-    let isListedAdmin = isBootstrapped;
-    if (!isListedAdmin) {
-      try {
-        const adminSnap = await getDoc(doc(db, 'admins', user.uid));
-        isListedAdmin = adminSnap.exists();
-      } catch {
-        isListedAdmin = false;
-      }
-    }
-
-    if (!snap.exists()) {
-      const initialRole: UserRole = isListedAdmin ? 'admin' : 'student';
-      const newProfile = {
-        uid: user.uid,
-        displayName: clampString(user.displayName || user.email?.split('@')[0] || 'Birta Learner', LIMITS.NAME_MAX),
-        email: clampString(user.email || 'unknown@birtaacademy.edu.np', LIMITS.EMAIL_MAX),
-        role: initialRole,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      await setDoc(userRef, newProfile);
-      return {
-        ...newProfile,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    const existing = snap.data() as UserProfile;
-    if (isListedAdmin && existing.role !== 'admin') {
-      await updateDoc(userRef, {
-        role: 'admin',
-        updatedAt: serverTimestamp(),
-      });
-      return { ...existing, role: 'admin' };
-    }
-    return existing;
+    const snap = await getDoc(doc(db, 'users', uid));
+    return snap.exists() ? (snap.data() as UserProfile) : null;
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, userPath);
+    handleFirestoreError(error, OperationType.GET, path);
   }
 }
 
@@ -196,70 +153,6 @@ export async function listAllUsers(): Promise<UserProfile[]> {
     return snap.docs.map((d) => d.data() as UserProfile);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
-  }
-}
-
-export async function adminUpdateUserRole(params: {
-  targetUser: UserProfile;
-  newRole: UserRole;
-  actor: UserProfile;
-}): Promise<void> {
-  const path = `users/${params.targetUser.uid}`;
-  try {
-    await updateDoc(doc(db, 'users', params.targetUser.uid), {
-      role: params.newRole,
-      updatedAt: serverTimestamp(),
-    });
-
-    if (params.newRole === 'admin') {
-      await setDoc(doc(db, 'admins', params.targetUser.uid), {
-        uid: params.targetUser.uid,
-        email: clampString(params.targetUser.email, LIMITS.EMAIL_MAX),
-        grantedBy: params.actor.uid,
-        createdAt: serverTimestamp(),
-      });
-    } else {
-      // Remove from admins collection if demoting another user
-      if (params.targetUser.uid !== params.actor.uid) {
-        try {
-          await deleteDoc(doc(db, 'admins', params.targetUser.uid));
-        } catch {
-          // Ignore if no admin doc existed
-        }
-      }
-    }
-
-    if (params.newRole === 'instructor') {
-      const instRef = doc(db, 'instructors', params.targetUser.uid);
-      const instSnap = await getDoc(instRef);
-      if (!instSnap.exists()) {
-        await setDoc(instRef, {
-          id: params.targetUser.uid,
-          userId: params.targetUser.uid,
-          displayName: clampString(params.targetUser.displayName, LIMITS.NAME_MAX),
-          specialty: 'Academy Faculty',
-          bio: clampString(
-            params.targetUser.bio || 'Instructor at Birta Academy. Update specialty and biography in the Instructor or Admin portal.',
-            LIMITS.INSTRUCTOR_BIO_MAX
-          ),
-          active: true,
-          isDemo: false,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-    }
-
-    await writeAuditLog({
-      actorId: params.actor.uid,
-      actorEmail: params.actor.email,
-      action: 'UPDATE_USER_ROLE',
-      targetCollection: 'users',
-      targetId: params.targetUser.uid,
-      summary: `Changed role for ${params.targetUser.email} from ${params.targetUser.role} to ${params.newRole}`,
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
 
