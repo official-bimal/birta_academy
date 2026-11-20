@@ -441,7 +441,7 @@ service cloud.firestore {
 
     // 3. Categories (Public Catalog Read, Admin Write)
     match /categories/{categoryId} {
-      allow get: if isValidId(categoryId) && (existing().active == true || isAdmin());
+      allow get: if isValidId(categoryId) && (resource == null || existing().active == true || isAdmin());
       allow list: if resource.data.active == true || isAdmin();
       allow create: if isAdmin()
         && isValidId(categoryId)
@@ -461,7 +461,7 @@ service cloud.firestore {
 
     // 4. Instructors (Public Profile Directory, NO PII)
     match /instructors/{instructorId} {
-      allow get: if isValidId(instructorId) && (existing().active == true || isAdmin());
+      allow get: if isValidId(instructorId) && (resource == null || existing().active == true || isAdmin());
       allow list: if resource.data.active == true || isAdmin();
       allow create: if isAdmin()
         && isValidId(instructorId)
@@ -484,7 +484,7 @@ service cloud.firestore {
 
     // 5. Courses (Published Public Read, Admin CRUD)
     match /courses/{courseId} {
-      allow get: if isValidId(courseId) && (existing().published == true || isAdmin() || (isSignedIn() && existing().instructorId == request.auth.uid));
+      allow get: if isValidId(courseId) && (resource == null || existing().published == true || isAdmin() || (isSignedIn() && existing().instructorId == request.auth.uid));
       allow list: if resource.data.published == true || isAdmin() || (isSignedIn() && resource.data.instructorId == request.auth.uid);
       allow create: if isAdmin()
         && isValidId(courseId)
@@ -509,7 +509,7 @@ service cloud.firestore {
 
     // 6. Batches (Public Cohort Schedule, Admin CRUD) + Gated Subcollections
     match /batches/{batchId} {
-      allow get: if isValidId(batchId) && (existing().status in ['upcoming', 'ongoing', 'completed'] || isAdmin());
+      allow get: if isValidId(batchId) && (resource == null || existing().status in ['upcoming', 'ongoing', 'completed'] || isAdmin());
       allow list: if resource.data.status in ['upcoming', 'ongoing', 'completed'] || isAdmin();
       allow create: if isAdmin()
         && isValidId(batchId)
@@ -636,9 +636,9 @@ service cloud.firestore {
     // 7. Enrollments & Manual Payment Verification (Strict Anti-Self-Approval)
     match /enrollments/{enrollmentId} {
       allow get: if isValidId(enrollmentId) && isSignedIn() && (
-        existing().studentId == request.auth.uid ||
-        existing().instructorId == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        (resource == null && enrollmentId.matches('^' + request.auth.uid + '_[a-zA-Z0-9_\\-]+$')) ||
+        (resource != null && (existing().studentId == request.auth.uid || existing().instructorId == request.auth.uid))
       );
       allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid ||
@@ -654,9 +654,9 @@ service cloud.firestore {
     // 8. Assignment Submissions
     match /submissions/{submissionId} {
       allow get: if isValidId(submissionId) && isSignedIn() && (
-        existing().studentId == request.auth.uid ||
-        existing().instructorId == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        (resource == null && submissionId.matches('^' + request.auth.uid + '_[a-zA-Z0-9_\\-]+$')) ||
+        (resource != null && (existing().studentId == request.auth.uid || existing().instructorId == request.auth.uid))
       );
       allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid ||
@@ -671,7 +671,9 @@ service cloud.firestore {
     // 9. Lesson Progress (Student self-tracking for approved batches)
     match /lessonProgress/{progressId} {
       allow get: if isValidId(progressId) && isSignedIn() && (
-        existing().studentId == request.auth.uid || isAdmin()
+        isAdmin() ||
+        (resource == null && progressId.matches('^' + request.auth.uid + '_[a-zA-Z0-9_\\-]+$')) ||
+        (resource != null && existing().studentId == request.auth.uid)
       );
       allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid || isAdmin()
@@ -700,7 +702,9 @@ service cloud.firestore {
     // 10. Certificates (Admin Issued; Student & Admin Read)
     match /certificates/{certificateId} {
       allow get: if isValidId(certificateId) && isSignedIn() && (
-        existing().studentId == request.auth.uid || isAdmin()
+        isAdmin() ||
+        (resource == null && certificateId.matches('^' + request.auth.uid + '_[a-zA-Z0-9_\\-]+$')) ||
+        (resource != null && existing().studentId == request.auth.uid)
       );
       allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid || isAdmin()
@@ -721,7 +725,8 @@ service cloud.firestore {
     // 11. Admission Inquiries (PII isolated to owner & admin)
     match /inquiries/{inquiryId} {
       allow get: if isValidId(inquiryId) && isSignedIn() && (
-        existing().userId == request.auth.uid || isAdmin()
+        isAdmin() ||
+        (resource != null && existing().userId == request.auth.uid)
       );
       allow list: if isSignedIn() && (
         resource.data.userId == request.auth.uid || isAdmin()
