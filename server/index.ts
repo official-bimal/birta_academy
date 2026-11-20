@@ -31,6 +31,7 @@ import {
 } from '../src/lib/enrollmentPolicy.ts';
 import {
   decideStudentSignIn,
+  sanitizePhone,
   validateInstructorInvite,
   type ClaimRole,
 } from '../src/lib/roles.ts';
@@ -70,6 +71,11 @@ const auth = getAuth(adminApp);
 const REQUIRE_ADMIN_MFA = process.env.REQUIRE_ADMIN_MFA !== 'false';
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
+// Production fails closed: the admin console must never run without MFA enforcement.
+if (process.env.NODE_ENV === 'production' && !REQUIRE_ADMIN_MFA) {
+  throw new Error('REQUIRE_ADMIN_MFA=false is a development-only setting and is refused when NODE_ENV=production.');
+}
+
 type AuthedRequest = Request & { user: DecodedIdToken };
 
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -94,6 +100,12 @@ function requireRole(role: ClaimRole) {
     }
     next();
   };
+}
+
+/** Student operations with side effects need a verified email (Google accounts always are). */
+function requireVerifiedEmail(req: Request, res: Response, next: NextFunction) {
+  if ((req as AuthedRequest).user.email_verified === true) return next();
+  res.status(403).json({ error: 'EMAIL_NOT_VERIFIED' });
 }
 
 const sensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.RATE_LIMIT_SENSITIVE) || 30, standardHeaders: true, legacyHeaders: false, message: { error: 'RATE_LIMITED' } });
@@ -129,32 +141,38 @@ app.post('/api/auth/student-init', initLimiter, requireAuth, async (req, res) =>
   const user = (req as AuthedRequest).user;
   try {
     const profileRef = adminDb.collection('users').doc(user.uid);
-    const snap = await profileRef.get();
-    const decision = decideStudentSignIn({
-      signInProvider: user.firebase.sign_in_provider,
-      emailVerified: user.email_verified === true,
-      existingClaim: user.role,
-      existingProfileRole: snap.exists ? (snap.data()?.role as string | undefined) : undefined,
+    const record = await auth.getUser(user.uid);
+    // One transaction: repeated or concurrent calls can never create a second profile or overwrite one.
+    const decision = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(profileRef);
+      const d = decideStudentSignIn({
+        signInProvider: user.firebase.sign_in_provider,
+        emailVerified: user.email_verified === true,
+        existingClaim: user.role,
+        existingProfileRole: snap.exists ? (snap.data()?.role as string | undefined) : undefined,
+      });
+      if (d.allow && d.createProfile) {
+        const phone = sanitizePhone((req.body as { phone?: unknown } | undefined)?.phone);
+        tx.create(profileRef, {
+          uid: user.uid,
+          displayName: (record.displayName || user.email?.split('@')[0] || 'Birta Learner').trim().slice(0, 100),
+          email: (user.email || '').slice(0, 200),
+          ...(phone ? { phone } : {}),
+          role: 'student',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return d;
     });
     if (!decision.allow) {
       // Deliberately generic: do not reveal which accounts are staff.
       return res.status(403).json({ error: decision.reason === 'STAFF_ACCOUNT' ? 'USE_STAFF_LOGIN' : 'NOT_ALLOWED' });
     }
-    if (decision.createProfile) {
-      const record = await auth.getUser(user.uid);
-      await profileRef.set({
-        uid: user.uid,
-        displayName: (record.displayName || user.email?.split('@')[0] || 'Birta Learner').slice(0, 100),
-        email: (user.email || '').slice(0, 200),
-        role: 'student',
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    }
     if (user.role !== 'STUDENT') {
       await auth.setCustomUserClaims(user.uid, { role: 'STUDENT' });
     }
-    res.json({ ok: true, role: 'STUDENT' });
+    res.json({ ok: true, role: 'STUDENT', emailVerified: user.email_verified === true });
   } catch (error) {
     console.error('student-init failed', error);
     res.status(500).json({ error: 'SERVER_ERROR' });
@@ -248,7 +266,7 @@ const OCCUPYING = ['approved', 'completed'];
  * Student applies for a batch. Price, instructor, names and course are read from the database,
  * never trusted from the browser. Idempotent per (student, batch).
  */
-app.post('/api/enrollments', initLimiter, requireAuth, requireRole('STUDENT'), async (req, res) => {
+app.post('/api/enrollments', initLimiter, requireAuth, requireRole('STUDENT'), requireVerifiedEmail, async (req, res) => {
   const user = (req as AuthedRequest).user;
   const parsed = validateEnrollmentSubmission(req.body);
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
@@ -584,7 +602,7 @@ app.post('/api/sessions/access', initLimiter, requireAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Assignments: submissions and grading
 // ---------------------------------------------------------------------------
-app.post('/api/submissions', initLimiter, requireAuth, requireRole('STUDENT'), async (req, res) => {
+app.post('/api/submissions', initLimiter, requireAuth, requireRole('STUDENT'), requireVerifiedEmail, async (req, res) => {
   const user = (req as AuthedRequest).user;
   const b = (req.body ?? {}) as Record<string, unknown>;
   const idRe = /^[a-zA-Z0-9_-]{1,128}$/;

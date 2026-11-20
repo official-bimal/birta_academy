@@ -1083,6 +1083,16 @@ export function StudentDashboard() {
               <h2 className="font-display text-lg font-semibold text-slate-950 dark:text-white">
                 Learner Profile
               </h2>
+              <Link
+                to="/student/settings/security"
+                className="flex items-center justify-between gap-3 p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 text-sm hover:border-brand-500 transition-colors"
+              >
+                <span>
+                  <span className="font-semibold text-slate-950 dark:text-white">Security and login methods</span>
+                  <span className="block text-xs text-slate-500">Set a password, connect Google, change password</span>
+                </span>
+                <span aria-hidden="true" className="text-brand-700 dark:text-brand-400">→</span>
+              </Link>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Email (Read-Only)

@@ -1,19 +1,27 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  createUserWithEmailAndPassword,
   getMultiFactorResolver,
   onAuthStateChanged,
+  reload,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   TotpMultiFactorGenerator,
+  updateProfile,
   type MultiFactorResolver,
   type User,
 } from 'firebase/auth';
 import { auth, googleProvider, parseFirestoreErrorMessage } from '../lib/firebase';
 import { getUserProfile } from '../lib/firestoreService';
 import { apiFetch, ApiError } from '../lib/api';
-import { describeStudentSignInFailure } from '../lib/authErrors';
-import { claimToAppRole, isStaffClaim, type AppRole } from '../lib/roles';
+import { describeFirebaseAuthError, describeStudentSignInFailure } from '../lib/authErrors';
+import { claimToAppRole, isExpectedStaffRole, type AppRole } from '../lib/roles';
 import type { UserProfile } from '../types';
 
 export type StaffSignInResult =
@@ -21,16 +29,37 @@ export type StaffSignInResult =
   | { status: 'mfa'; resolver: MultiFactorResolver }
   | { status: 'error' };
 
+export type ActionResult = { ok: true } | { ok: false; message: string };
+
+export interface RegisterInput {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+}
+
 interface AuthContextValue {
   firebaseUser: User | null;
   profile: UserProfile | null;
   loading: boolean;
   authError: string | null;
-  /** Student flow only. */
+  clearAuthError: () => void;
+  /** Sign-in providers connected to the current account, e.g. ['google.com', 'password'] */
+  providers: string[];
+  emailVerified: boolean;
+  /** Student: Google popup. */
   signInWithGoogle: () => Promise<UserProfile | null>;
-  /** Staff flow only (SUPER_ADMIN / INSTRUCTOR). */
-  staffSignIn: (email: string, password: string) => Promise<StaffSignInResult>;
-  completeStaffMfa: (resolver: MultiFactorResolver, code: string) => Promise<StaffSignInResult>;
+  /** Student: email + password. */
+  studentEmailSignIn: (email: string, password: string, remember: boolean) => Promise<UserProfile | null>;
+  /** Student: manual registration (role is assigned by the server, never by this form). */
+  registerStudent: (input: RegisterInput) => Promise<ActionResult>;
+  sendReset: (email: string, continuePath: string) => Promise<void>;
+  resendVerification: () => Promise<ActionResult>;
+  /** Re-reads the user from Firebase (after verifying email, linking a provider, ...). */
+  reloadUser: () => Promise<void>;
+  /** Staff: the chosen form only states which role is EXPECTED; the server-set claim decides. */
+  staffSignIn: (email: string, password: string, expected: 'admin' | 'instructor', remember: boolean) => Promise<StaffSignInResult>;
+  completeStaffMfa: (resolver: MultiFactorResolver, code: string, expected: 'admin' | 'instructor') => Promise<StaffSignInResult>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   isAdmin: boolean;
@@ -42,7 +71,6 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const STAFF_LOGIN_ERROR = 'Sign-in failed. Check your email and password, or contact the academy administrator.';
 const STUDENT_STAFF_MESSAGE = 'This account is not a student account. Please use the staff login.';
 
-/** Builds the profile for a signed-in user. The role always comes from the verified token claim. */
 async function buildProfile(user: User, role: AppRole): Promise<UserProfile> {
   let stored: UserProfile | null = null;
   try {
@@ -63,19 +91,22 @@ async function buildProfile(user: User, role: AppRole): Promise<UserProfile> {
   };
 }
 
+const hasProvider = (u: User, id: string) => u.providerData.some((p) => p.providerId === id);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  /** true while the Google popup flow is finalising the account, so the auth listener does not repeat it */
-  const popupFlow = useRef(false);
+  const [, setVersion] = useState(0);
+  /** true while an explicit sign-in/registration flow is finalising, so the auth listener does not repeat it */
+  const flow = useRef(false);
 
   const resolveSession = useCallback(async (user: User): Promise<UserProfile | null> => {
     let tokenResult = await user.getIdTokenResult();
-    // A returning Google student whose claim is not set yet is finalised by the trusted server.
-    if (!tokenResult.claims.role && user.providerData.some((p) => p.providerId === 'google.com')) {
-      await apiFetch('/auth/student-init', { method: 'POST' });
+    // A returning student whose claim is not set yet is finalised by the trusted server.
+    if (!tokenResult.claims.role && (hasProvider(user, 'google.com') || hasProvider(user, 'password'))) {
+      await apiFetch('/auth/student-init', { method: 'POST', body: {} });
       tokenResult = await user.getIdTokenResult(true);
     }
     const role = claimToAppRole(tokenResult.claims.role);
@@ -86,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
-      if (popupFlow.current) return;
+      if (flow.current) return;
       if (!user) {
         setProfile(null);
         setLoading(false);
@@ -96,103 +127,204 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .then((p) => setProfile(p))
         .catch((error) => {
           setProfile(null);
-          setAuthError(error instanceof ApiError ? 'Could not verify your account. Please try again.' : parseFirestoreErrorMessage(error));
+          setAuthError(error instanceof ApiError ? describeStudentSignInFailure(error) : parseFirestoreErrorMessage(error));
         })
         .finally(() => setLoading(false));
     });
     return () => unsub();
   }, [resolveSession]);
 
+  const clearAuthError = useCallback(() => setAuthError(null), []);
+
+  const applyPersistence = useCallback(async (remember: boolean) => {
+    await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+  }, []);
+
+  /** After any student sign-in: let the server finalise the account, then require a STUDENT claim. */
+  const finishStudent = useCallback(async (user: User): Promise<UserProfile | null> => {
+    try {
+      await apiFetch('/auth/student-init', { method: 'POST', body: {} });
+    } catch (error) {
+      console.error('[auth] student sign-in finalisation failed', {
+        status: error instanceof ApiError ? error.status : undefined,
+        code: error instanceof ApiError ? error.code : 'UNKNOWN',
+      });
+      await signOut(auth);
+      setProfile(null);
+      setAuthError(describeStudentSignInFailure(error));
+      return null;
+    }
+    const tokenResult = await user.getIdTokenResult(true);
+    const role = claimToAppRole(tokenResult.claims.role);
+    if (role !== 'student') {
+      await signOut(auth);
+      setAuthError(STUDENT_STAFF_MESSAGE);
+      return null;
+    }
+    const synced = await buildProfile(user, role);
+    setFirebaseUser(user);
+    setProfile(synced);
+    return synced;
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     setAuthError(null);
-    popupFlow.current = true;
+    flow.current = true;
     try {
+      await applyPersistence(true);
       const credential = await signInWithPopup(auth, googleProvider);
-      try {
-        await apiFetch('/auth/student-init', { method: 'POST' });
-      } catch (error) {
-        // Developer-facing diagnostics only: status and code, never tokens or account details.
-        console.error('[auth] student sign-in finalisation failed', {
-          status: error instanceof ApiError ? error.status : undefined,
-          code: error instanceof ApiError ? error.code : 'UNKNOWN',
-        });
-        await signOut(auth);
-        setProfile(null);
-        setAuthError(describeStudentSignInFailure(error));
-        return null;
-      }
-      const tokenResult = await credential.user.getIdTokenResult(true);
-      const role = claimToAppRole(tokenResult.claims.role);
-      if (role !== 'student') {
-        await signOut(auth);
-        setAuthError(STUDENT_STAFF_MESSAGE);
-        return null;
-      }
-      const synced = await buildProfile(credential.user, role);
-      setFirebaseUser(credential.user);
-      setProfile(synced);
-      return synced;
+      return await finishStudent(credential.user);
     } catch (error) {
       const code = (error as { code?: string }).code;
-      if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-        console.error('[auth] Google popup failed', { code });
-        setAuthError(
-          code === 'auth/unauthorized-domain'
-            ? 'This site is not yet authorised for Google sign-in. Please contact the academy.'
-            : code === 'auth/popup-blocked'
-            ? 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.'
-            : 'We could not start Google sign-in. Please try again.'
-        );
-      }
+      console.error('[auth] Google popup failed', { code });
+      const message = describeFirebaseAuthError(code, 'login');
+      if (message) setAuthError(message);
       return null;
     } finally {
-      popupFlow.current = false;
+      flow.current = false;
       setLoading(false);
+    }
+  }, [applyPersistence, finishStudent]);
+
+  const studentEmailSignIn = useCallback(
+    async (email: string, password: string, remember: boolean) => {
+      setAuthError(null);
+      flow.current = true;
+      try {
+        await applyPersistence(remember);
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        return await finishStudent(cred.user);
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        console.error('[auth] email sign-in failed', { code });
+        setAuthError(describeFirebaseAuthError(code, 'login'));
+        return null;
+      } finally {
+        flow.current = false;
+        setLoading(false);
+      }
+    },
+    [applyPersistence, finishStudent]
+  );
+
+  const registerStudent = useCallback(
+    async (input: RegisterInput): Promise<ActionResult> => {
+      setAuthError(null);
+      flow.current = true;
+      try {
+        await applyPersistence(true);
+        const cred = await createUserWithEmailAndPassword(auth, input.email.trim(), input.password);
+        await updateProfile(cred.user, { displayName: input.name.trim().slice(0, 100) });
+        // The server creates the profile and assigns STUDENT; the browser sends no role.
+        try {
+          await apiFetch('/auth/student-init', { method: 'POST', body: { phone: input.phone?.trim() || undefined } });
+        } catch (error) {
+          console.error('[auth] registration finalisation failed', { code: error instanceof ApiError ? error.code : 'UNKNOWN' });
+          return { ok: false, message: describeStudentSignInFailure(error) };
+        }
+        await cred.user.getIdToken(true);
+        try {
+          await sendEmailVerification(cred.user, { url: `${window.location.origin}/student` });
+        } catch (error) {
+          console.error('[auth] verification email failed', { code: (error as { code?: string }).code });
+        }
+        setFirebaseUser(cred.user);
+        setProfile(await buildProfile(cred.user, 'student'));
+        return { ok: true };
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        console.error('[auth] registration failed', { code });
+        return { ok: false, message: describeFirebaseAuthError(code, 'register') };
+      } finally {
+        flow.current = false;
+        setLoading(false);
+      }
+    },
+    [applyPersistence]
+  );
+
+  const sendReset = useCallback(async (email: string, continuePath: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email.trim(), { url: `${window.location.origin}${continuePath}` });
+    } catch (error) {
+      // Never reveal whether the account exists; only log for developers.
+      console.error('[auth] password reset request failed', { code: (error as { code?: string }).code });
     }
   }, []);
 
-  const finishStaff = useCallback(async (user: User): Promise<StaffSignInResult> => {
+  const resendVerification = useCallback(async (): Promise<ActionResult> => {
+    const user = auth.currentUser;
+    if (!user) return { ok: false, message: 'Please sign in first.' };
+    try {
+      await sendEmailVerification(user, { url: `${window.location.origin}/student` });
+      return { ok: true };
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      return { ok: false, message: code === 'auth/too-many-requests' ? 'Please wait a minute before requesting another email.' : 'We could not send the email right now. Please try again later.' };
+    }
+  }, []);
+
+  const reloadUser = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    await reload(user);
+    await user.getIdToken(true);
+    setFirebaseUser(user);
+    setVersion((v) => v + 1);
+  }, []);
+
+  const finishStaff = useCallback(async (user: User, expected: 'admin' | 'instructor'): Promise<StaffSignInResult> => {
     const tokenResult = await user.getIdTokenResult(true);
-    if (!isStaffClaim(tokenResult.claims.role)) {
-      // Students (or unknown accounts) can never use the staff door.
+    const role = claimToAppRole(tokenResult.claims.role);
+    // The form only states the EXPECTED role. Students, unknown accounts, and staff using the wrong form are refused.
+    if (!isExpectedStaffRole(tokenResult.claims.role, expected)) {
       await signOut(auth);
       setAuthError(STAFF_LOGIN_ERROR);
       return { status: 'error' };
     }
-    const role = claimToAppRole(tokenResult.claims.role) as AppRole;
-    setProfile(await buildProfile(user, role));
-    return { status: 'ok', role };
+    setProfile(await buildProfile(user, role as AppRole));
+    return { status: 'ok', role: role as AppRole };
   }, []);
 
   const staffSignIn = useCallback(
-    async (email: string, password: string): Promise<StaffSignInResult> => {
+    async (email: string, password: string, expected: 'admin' | 'instructor', remember: boolean): Promise<StaffSignInResult> => {
       setAuthError(null);
+      flow.current = true;
       try {
+        await applyPersistence(remember);
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-        return await finishStaff(cred.user);
+        return await finishStaff(cred.user, expected);
       } catch (error) {
         if ((error as { code?: string }).code === 'auth/multi-factor-auth-required') {
           return { status: 'mfa', resolver: getMultiFactorResolver(auth, error as never) };
         }
+        console.error('[auth] staff sign-in failed', { code: (error as { code?: string }).code });
         setAuthError(STAFF_LOGIN_ERROR);
         return { status: 'error' };
+      } finally {
+        flow.current = false;
+        setLoading(false);
       }
     },
-    [finishStaff]
+    [applyPersistence, finishStaff]
   );
 
   const completeStaffMfa = useCallback(
-    async (resolver: MultiFactorResolver, code: string): Promise<StaffSignInResult> => {
+    async (resolver: MultiFactorResolver, code: string, expected: 'admin' | 'instructor'): Promise<StaffSignInResult> => {
       setAuthError(null);
+      flow.current = true;
       try {
         const hint = resolver.hints.find((h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID);
         if (!hint) throw new Error('No authenticator enrolled');
         const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code.trim());
         const cred = await resolver.resolveSignIn(assertion);
-        return await finishStaff(cred.user);
+        return await finishStaff(cred.user, expected);
       } catch {
         setAuthError('That code was not accepted. Try the current code from your authenticator app.');
         return { status: 'error' };
+      } finally {
+        flow.current = false;
+        setLoading(false);
       }
     },
     [finishStaff]
@@ -212,6 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = profile?.role === 'admin';
   const isInstructor = profile?.role === 'instructor' || profile?.role === 'admin';
+  const providers = firebaseUser ? firebaseUser.providerData.map((p) => p.providerId) : [];
 
   return (
     <AuthContext.Provider
@@ -220,7 +353,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         loading,
         authError,
+        clearAuthError,
+        providers,
+        emailVerified: firebaseUser?.emailVerified ?? false,
         signInWithGoogle,
+        studentEmailSignIn,
+        registerStudent,
+        sendReset,
+        resendVerification,
+        reloadUser,
         staffSignIn,
         completeStaffMfa,
         logout,

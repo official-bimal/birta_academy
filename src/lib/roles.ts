@@ -44,11 +44,14 @@ export function homeRouteForRole(role: AppRole | null): string {
 
 export type StudentSignInDecision =
   | { allow: true; createProfile: boolean }
-  | { allow: false; reason: 'NOT_GOOGLE' | 'EMAIL_UNVERIFIED' | 'STAFF_ACCOUNT' };
+  | { allow: false; reason: 'PROVIDER_NOT_ALLOWED' | 'EMAIL_UNVERIFIED' | 'STAFF_ACCOUNT' };
 
 /**
- * Decides whether a Google sign-in may become / continue as a STUDENT.
- * Google sign-in can never create or upgrade a staff account, and never downgrades one.
+ * Decides whether a sign-in may become / continue as a STUDENT.
+ *  - Google: the email must be verified by Google.
+ *  - Email/password: allowed even when unverified (the account then has limited access until the email is
+ *    verified; privileged student operations require a verified email).
+ * Neither path can create or upgrade a staff account, and neither ever downgrades one.
  */
 export function decideStudentSignIn(input: {
   signInProvider: string | undefined;
@@ -56,8 +59,9 @@ export function decideStudentSignIn(input: {
   existingClaim: unknown;
   existingProfileRole: string | undefined;
 }): StudentSignInDecision {
-  if (input.signInProvider !== 'google.com') return { allow: false, reason: 'NOT_GOOGLE' };
-  if (!input.emailVerified) return { allow: false, reason: 'EMAIL_UNVERIFIED' };
+  const provider = input.signInProvider;
+  if (provider !== 'google.com' && provider !== 'password') return { allow: false, reason: 'PROVIDER_NOT_ALLOWED' };
+  if (provider === 'google.com' && !input.emailVerified) return { allow: false, reason: 'EMAIL_UNVERIFIED' };
   if (isStaffClaim(input.existingClaim)) return { allow: false, reason: 'STAFF_ACCOUNT' };
   if (input.existingProfileRole === 'admin' || input.existingProfileRole === 'instructor') {
     return { allow: false, reason: 'STAFF_ACCOUNT' };
@@ -79,4 +83,16 @@ export function validateInstructorInvite(body: unknown):
     return { ok: false, error: 'Enter a valid email address.' };
   }
   return { ok: true, name: name.trim(), email: email.trim().toLowerCase() };
+}
+
+/** Optional phone number captured at registration (profile data only; never used for authorisation). */
+export function sanitizePhone(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const v = value.trim();
+  return /^\+?[0-9 ()-]{7,20}$/.test(v) ? v : undefined;
+}
+
+/** The staff form only states which role is expected; the server-set claim must match it exactly. */
+export function isExpectedStaffRole(claim: unknown, expected: 'admin' | 'instructor'): boolean {
+  return isStaffClaim(claim) && claimToAppRole(claim) === expected;
 }

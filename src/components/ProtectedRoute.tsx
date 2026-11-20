@@ -8,11 +8,13 @@ import type { UserRole } from '../types';
 interface ProtectedRouteProps {
   allowedRoles: UserRole[];
   loginPath?: string;
+  /** students who registered by email must verify it before using the learning area */
+  requireVerifiedEmail?: boolean;
   children: React.ReactNode;
 }
 
-export function ProtectedRoute({ allowedRoles, loginPath = '/login', children }: ProtectedRouteProps) {
-  const { profile, loading } = useAuth();
+export function ProtectedRoute({ allowedRoles, loginPath = '/login', requireVerifiedEmail = false, children }: ProtectedRouteProps) {
+  const { profile, loading, emailVerified, providers } = useAuth();
 
   if (loading) {
     return (
@@ -59,6 +61,11 @@ export function ProtectedRoute({ allowedRoles, loginPath = '/login', children }:
         </div>
       </div>
     );
+  }
+
+  // Email/password students have limited access until their email is verified (Google emails are pre-verified).
+  if (requireVerifiedEmail && profile.role === 'student' && providers.includes('password') && !emailVerified) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   return <>{children}</>;

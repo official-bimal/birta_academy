@@ -1,32 +1,47 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { MultiFactorResolver } from 'firebase/auth';
-import { PublicLayout } from '../../components/PublicLayout';
+import { Presentation, ShieldCheck } from 'lucide-react';
+import { Alert, AuthCard, AuthLayout, PasswordField, PrimaryButton, TextField } from '../../components/auth/AuthParts';
 import { useAuth } from '../../context/AuthContext';
 import { homeRouteForRole } from '../../lib/roles';
+import { isValidEmail } from '../../lib/passwordPolicy';
 
+type Expected = 'instructor' | 'admin';
+
+/**
+ * Staff sign-in (email + password only; no Google, no public registration).
+ * The tab only states which role the person EXPECTS to be: the server-set role claim decides, and a mismatch is refused.
+ */
 export function StaffLoginPage() {
-  const { profile, loading, authError, staffSignIn, completeStaffMfa } = useAuth();
+  const { profile, loading, authError, clearAuthError, staffSignIn, completeStaffMfa } = useAuth();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const expected: Expected = params.get('as') === 'admin' ? 'admin' : 'instructor';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
   const [code, setCode] = useState('');
   const [resolver, setResolver] = useState<MultiFactorResolver | null>(null);
   const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
-    if (!loading && profile && profile.role !== 'student') {
-      navigate(homeRouteForRole(profile.role), { replace: true });
-    }
+    clearAuthError();
+    setResolver(null);
+  }, [expected, clearAuthError]);
+
+  useEffect(() => {
+    if (!loading && profile && profile.role !== 'student') navigate(homeRouteForRole(profile.role), { replace: true });
   }, [loading, profile, navigate]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    setTouched(true);
+    if (!resolver && (!isValidEmail(email) || !password)) return;
     setBusy(true);
     try {
-      const result = resolver
-        ? await completeStaffMfa(resolver, code)
-        : await staffSignIn(email, password);
+      const result = resolver ? await completeStaffMfa(resolver, code, expected) : await staffSignIn(email, password, expected, remember);
       if (result.status === 'mfa') setResolver(result.resolver);
       if (result.status === 'ok') navigate(homeRouteForRole(result.role), { replace: true });
     } finally {
@@ -34,65 +49,59 @@ export function StaffLoginPage() {
     }
   };
 
-  const input =
-    'w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm';
+  const tab = (value: Expected, label: string, Icon: typeof Presentation) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={expected === value}
+      onClick={() => setParams({ as: value }, { replace: true })}
+      className={`flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-md text-sm font-semibold transition-colors ${
+        expected === value ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+      }`}
+    >
+      <Icon className="w-4 h-4" aria-hidden="true" /> {label}
+    </button>
+  );
 
   return (
-    <PublicLayout>
-      <div className="max-w-md mx-auto px-6 py-16 lg:py-24">
-        <form
-          onSubmit={(e) => void submit(e)}
-          className="p-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5"
-        >
-          <div>
-            <p className="text-xs font-medium text-brand-700 dark:text-brand-400">Staff access</p>
-            <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
-              Instructor &amp; admin sign-in
-            </h1>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-              Accounts are created by the academy. There is no public staff registration.
-            </p>
-          </div>
+    <AuthLayout>
+      <AuthCard
+        eyebrow="Staff access"
+        title={expected === 'admin' ? 'Super Admin sign-in' : 'Instructor sign-in'}
+        subtitle={expected === 'admin' ? 'Academy administration. Extra verification is required.' : 'Use the email and password you set from your invitation.'}
+      >
+        <div role="tablist" aria-label="Account type" className="flex p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+          {tab('instructor', 'Instructor', Presentation)}
+          {tab('admin', 'Super Admin', ShieldCheck)}
+        </div>
 
-          {authError && (
-            <div role="alert" className="p-3 rounded-lg border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-xs text-red-700 dark:text-red-300">
-              {authError}
-            </div>
-          )}
+        {authError && <Alert>{authError}</Alert>}
 
+        <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
           {resolver ? (
-            <div>
-              <label htmlFor="mfa" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Authenticator code
-              </label>
-              <input id="mfa" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus value={code} onChange={(e) => setCode(e.target.value)} className={`${input} mt-1 font-mono tracking-widest`} />
-            </div>
+            <TextField label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={code} onChange={(e) => setCode(e.target.value)} className="font-mono tracking-widest" hint="Enter the 6-digit code from your authenticator app." />
           ) : (
             <>
-              <div>
-                <label htmlFor="email" className="text-xs font-medium text-slate-700 dark:text-slate-300">Email</label>
-                <input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={`${input} mt-1`} />
-              </div>
-              <div>
-                <label htmlFor="password" className="text-xs font-medium text-slate-700 dark:text-slate-300">Password</label>
-                <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className={`${input} mt-1`} />
+              <TextField label="Email" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} error={touched && !isValidEmail(email) ? 'Enter a valid email address.' : null} />
+              <PasswordField label="Password" autoComplete="current-password" value={password} onChange={setPassword} error={touched && !password ? 'Enter your password.' : null} />
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <label className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="rounded border-slate-300" />
+                  Keep me signed in on this device
+                </label>
+                <Link to="/forgot-password?for=staff" className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">Forgot password?</Link>
               </div>
             </>
           )}
-
-          <button
-            type="submit"
-            disabled={busy || loading}
-            className="w-full py-3 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors"
-          >
-            {busy ? 'Signing in…' : resolver ? 'Verify code' : 'Sign in'}
-          </button>
-
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Student? <Link to="/login" className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">Continue with Google</Link>
-          </p>
+          <PrimaryButton type="submit" busy={busy || loading}>{busy ? 'Signing in…' : resolver ? 'Verify code' : 'Sign in'}</PrimaryButton>
         </form>
-      </div>
-    </PublicLayout>
+
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Staff accounts are created by the academy; there is no public staff registration. First time? Open the activation link
+          from your invitation to set your password. Student?{' '}
+          <Link to="/student/login" className="underline">Go to student sign-in</Link>.
+        </p>
+      </AuthCard>
+    </AuthLayout>
   );
 }

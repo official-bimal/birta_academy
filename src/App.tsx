@@ -13,7 +13,12 @@ const BatchesPage = lazy(() => import('./pages/public/BatchesPage').then((m) => 
 const InstructorsPage = lazy(() => import('./pages/public/InstructorsPage').then((m) => ({ default: m.InstructorsPage })));
 const AboutPage = lazy(() => import('./pages/public/AboutPage').then((m) => ({ default: m.AboutPage })));
 const ContactPage = lazy(() => import('./pages/public/ContactPage').then((m) => ({ default: m.ContactPage })));
-const AuthPage = lazy(() => import('./pages/public/AuthPage').then((m) => ({ default: m.AuthPage })));
+const LoginChooserPage = lazy(() => import('./pages/auth/LoginChooserPage').then((m) => ({ default: m.LoginChooserPage })));
+const StudentLoginPage = lazy(() => import('./pages/auth/StudentLoginPage').then((m) => ({ default: m.StudentLoginPage })));
+const StudentRegisterPage = lazy(() => import('./pages/auth/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage').then((m) => ({ default: m.VerifyEmailPage })));
+const StudentSecurityPage = lazy(() => import('./pages/student/StudentSecurityPage').then((m) => ({ default: m.StudentSecurityPage })));
 const VerifyCertificatePage = lazy(() => import('./pages/public/VerifyCertificatePage').then((m) => ({ default: m.VerifyCertificatePage })));
 const StaffLoginPage = lazy(() => import('./pages/staff/StaffLoginPage').then((m) => ({ default: m.StaffLoginPage })));
 const StaffSecurityPage = lazy(() => import('./pages/staff/StaffSecurityPage').then((m) => ({ default: m.StaffSecurityPage })));
@@ -41,21 +46,34 @@ export default function App() {
                 <Route path="/instructors" element={<InstructorsPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
-                <Route path="/login" element={<AuthPage mode="login" />} />
+                <Route path="/login" element={<LoginChooserPage />} />
+                <Route path="/student/login" element={<StudentLoginPage />} />
+                <Route path="/student/register" element={<StudentRegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/staff/login" element={<StaffLoginPage />} />
                 <Route path="/staff/security" element={<StaffSecurityPage />} />
-                <Route path="/register" element={<Navigate to="/login" replace />} />
+                <Route path="/register" element={<Navigate to="/student/register" replace />} />
                 <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/terms" element={<LegalPage type="terms" />} />
                 <Route path="/refund" element={<LegalPage type="refund" />} />
                 <Route path="/verify" element={<VerifyCertificatePage />} />
                 <Route path="/verify/:code" element={<VerifyCertificatePage />} />
 
+                <Route
+                  path="/student/settings/security"
+                  element={
+                    <ProtectedRoute allowedRoles={["student"]} loginPath="/student/login">
+                      <StudentSecurityPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Student Learning Management System */}
                 <Route
                   path="/student/*"
                   element={
-                    <ProtectedRoute allowedRoles={['student']}>
+                    <ProtectedRoute allowedRoles={["student"]} loginPath="/student/login" requireVerifiedEmail>
                       <StudentDashboard />
                     </ProtectedRoute>
                   }
@@ -75,7 +93,7 @@ export default function App() {
                 <Route
                   path="/admin/*"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']} loginPath="/staff/login">
+                    <ProtectedRoute allowedRoles={['admin']} loginPath="/staff/login?as=admin">
                       <AdminDashboard />
                     </ProtectedRoute>
                   }

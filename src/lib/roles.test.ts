@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   claimToAppRole,
   decideStudentSignIn,
+  sanitizePhone,
   homeRouteForRole,
+  isExpectedStaffRole,
   isStaffClaim,
   validateInstructorInvite,
 } from './roles';
@@ -38,9 +40,15 @@ describe('student Google sign-in policy', () => {
     });
   });
 
-  it('rejects non-Google providers and unverified emails', () => {
-    expect(decideStudentSignIn({ signInProvider: 'password', emailVerified: true, existingClaim: undefined, existingProfileRole: undefined }).allow).toBe(false);
+  it('rejects unknown providers and unverified Google emails', () => {
+    expect(decideStudentSignIn({ signInProvider: 'custom', emailVerified: true, existingClaim: undefined, existingProfileRole: undefined })).toEqual({ allow: false, reason: 'PROVIDER_NOT_ALLOWED' });
     expect(decideStudentSignIn({ signInProvider: 'google.com', emailVerified: false, existingClaim: undefined, existingProfileRole: undefined }).allow).toBe(false);
+  });
+
+  it('allows email/password students (even unverified) but never staff', () => {
+    expect(decideStudentSignIn({ signInProvider: 'password', emailVerified: false, existingClaim: undefined, existingProfileRole: undefined })).toEqual({ allow: true, createProfile: true });
+    expect(decideStudentSignIn({ signInProvider: 'password', emailVerified: true, existingClaim: 'INSTRUCTOR', existingProfileRole: 'instructor' })).toEqual({ allow: false, reason: 'STAFF_ACCOUNT' });
+    expect(decideStudentSignIn({ signInProvider: 'password', emailVerified: true, existingClaim: 'SUPER_ADMIN', existingProfileRole: undefined })).toEqual({ allow: false, reason: 'STAFF_ACCOUNT' });
   });
 });
 
@@ -77,5 +85,24 @@ describe('instructor invite validation', () => {
     expect(validateInstructorInvite({ name: 'Asha', email: 'not-an-email' }).ok).toBe(false);
     expect(validateInstructorInvite(null).ok).toBe(false);
     expect(validateInstructorInvite({ name: 'Asha', email: 'a@b.co', role: 'SUPER_ADMIN' })).toMatchObject({ ok: true });
+  });
+});
+
+describe('sanitizePhone', () => {
+  it('keeps valid numbers and drops junk', () => {
+    expect(sanitizePhone(' +977 9800000000 ')).toBe('+977 9800000000');
+    expect(sanitizePhone('<script>')).toBeUndefined();
+    expect(sanitizePhone(123)).toBeUndefined();
+  });
+});
+
+describe('staff login form vs actual role (T18)', () => {
+  it('accepts only the matching staff role; selecting a form never changes permissions', () => {
+    expect(isExpectedStaffRole('INSTRUCTOR', 'instructor')).toBe(true);
+    expect(isExpectedStaffRole('SUPER_ADMIN', 'admin')).toBe(true);
+    expect(isExpectedStaffRole('INSTRUCTOR', 'admin')).toBe(false);
+    expect(isExpectedStaffRole('SUPER_ADMIN', 'instructor')).toBe(false);
+    expect(isExpectedStaffRole('STUDENT', 'admin')).toBe(false);
+    expect(isExpectedStaffRole(undefined, 'instructor')).toBe(false);
   });
 });

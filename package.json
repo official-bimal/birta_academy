@@ -14,7 +14,9 @@
     "test": "vitest run",
     "dev:all": "concurrently -k -n web,api \"npm run dev\" \"npm run server\"",
     "check:admin": "tsx scripts/check-admin.ts",
-    "test:e2e": "tsx scripts/e2e-local.ts"
+    "test:e2e": "tsx scripts/e2e-local.ts",
+    "test:auth": "tsx scripts/e2e-auth.ts",
+    "configure:auth": "tsx scripts/configure-auth.ts"
   },
   "dependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
