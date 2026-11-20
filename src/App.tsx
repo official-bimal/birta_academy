@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './context/ThemeContext';
@@ -6,21 +7,21 @@ import { CatalogProvider } from './context/CatalogContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import { HomePage } from './pages/public/HomePage';
-import { CoursesPage } from './pages/public/CoursesPage';
-import { CourseDetailPage } from './pages/public/CourseDetailPage';
-import { BatchesPage } from './pages/public/BatchesPage';
-import { InstructorsPage } from './pages/public/InstructorsPage';
-import { AboutPage } from './pages/public/AboutPage';
-import { ContactPage } from './pages/public/ContactPage';
-import { AuthPage } from './pages/public/AuthPage';
-import { VerifyCertificatePage } from './pages/public/VerifyCertificatePage';
-import { StaffLoginPage } from './pages/staff/StaffLoginPage';
-import { StaffSecurityPage } from './pages/staff/StaffSecurityPage';
-import { LegalPage } from './pages/public/LegalPage';
+const CoursesPage = lazy(() => import('./pages/public/CoursesPage').then((m) => ({ default: m.CoursesPage })));
+const CourseDetailPage = lazy(() => import('./pages/public/CourseDetailPage').then((m) => ({ default: m.CourseDetailPage })));
+const BatchesPage = lazy(() => import('./pages/public/BatchesPage').then((m) => ({ default: m.BatchesPage })));
+const InstructorsPage = lazy(() => import('./pages/public/InstructorsPage').then((m) => ({ default: m.InstructorsPage })));
+const AboutPage = lazy(() => import('./pages/public/AboutPage').then((m) => ({ default: m.AboutPage })));
+const ContactPage = lazy(() => import('./pages/public/ContactPage').then((m) => ({ default: m.ContactPage })));
+const AuthPage = lazy(() => import('./pages/public/AuthPage').then((m) => ({ default: m.AuthPage })));
+const VerifyCertificatePage = lazy(() => import('./pages/public/VerifyCertificatePage').then((m) => ({ default: m.VerifyCertificatePage })));
+const StaffLoginPage = lazy(() => import('./pages/staff/StaffLoginPage').then((m) => ({ default: m.StaffLoginPage })));
+const StaffSecurityPage = lazy(() => import('./pages/staff/StaffSecurityPage').then((m) => ({ default: m.StaffSecurityPage })));
+const LegalPage = lazy(() => import('./pages/public/LegalPage').then((m) => ({ default: m.LegalPage })));
 
-import { StudentDashboard } from './pages/student/StudentDashboard';
-import { InstructorDashboard } from './pages/instructor/InstructorDashboard';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
+const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
+const InstructorDashboard = lazy(() => import('./pages/instructor/InstructorDashboard').then((m) => ({ default: m.InstructorDashboard })));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
         <AuthProvider>
           <CatalogProvider>
             <BrowserRouter>
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-slate-500" role="status">Loading…</div>}>
               <Routes>
                 {/* Public Marketing Website */}
                 <Route path="/" element={<HomePage />} />
@@ -81,6 +83,7 @@ export default function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </Suspense>
             </BrowserRouter>
           </CatalogProvider>
         </AuthProvider>

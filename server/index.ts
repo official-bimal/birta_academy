@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import helmet from 'helmet';
+import path from 'node:path';
+import fs from 'node:fs';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
@@ -35,6 +38,32 @@ import {
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+app.use(
+  helmet({
+    // Report-only first: tighten to enforcing after checking the browser console on staging.
+    contentSecurityPolicy: false,
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // Google sign-in popup
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+  })
+);
+app.use((_req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy-Report-Only',
+    [
+      "default-src 'self'",
+      "script-src 'self' https://apis.google.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https:",
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+      'frame-src https://*.firebaseapp.com https://accounts.google.com',
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+    ].join('; ')
+  );
+  next();
+});
 app.use(express.json({ limit: '16kb' }));
 
 const auth = getAuth(adminApp);
@@ -749,6 +778,18 @@ app.post('/api/admin/certificates/:id/status', sensitiveLimiter, requireAuth, re
     handleError(res, error, 'certificate status failed');
   }
 });
+
+
+// ---------------------------------------------------------------------------
+// Production: serve the built SPA from the same origin (so /api needs no CORS)
+// ---------------------------------------------------------------------------
+app.use('/api', (_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
+const distDir = path.resolve(process.cwd(), 'dist');
+if (fs.existsSync(path.join(distDir, 'index.html'))) {
+  app.use('/assets', express.static(path.join(distDir, 'assets'), { immutable: true, maxAge: '1y' }));
+  app.use(express.static(distDir, { maxAge: '1h' }));
+  app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(distDir, 'index.html')));
+}
 
 const port = Number(process.env.PORT || 8787);
 app.listen(port, () => console.log(`Birta API listening on :${port} (admin MFA required: ${REQUIRE_ADMIN_MFA})`));

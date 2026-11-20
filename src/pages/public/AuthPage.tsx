@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
 import { PublicLayout } from '../../components/PublicLayout';
 import { homeRouteForRole } from '../../lib/roles';
 import { useAuth } from '../../context/AuthContext';
@@ -63,18 +62,6 @@ export function AuthPage({ mode }: AuthPageProps) {
           >
             {signingIn ? 'Connecting with Google...' : 'Continue with Google'}
           </button>
-
-          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1.5 leading-relaxed">
-            <p className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
-              <ShieldCheck className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
-              <span>Role-Based Access Enforcement</span>
-            </p>
-            <p>
-              New accounts start with the <strong>Student</strong> role enforced directly by
-              Firestore security rules. Instructor and Admin roles are assigned exclusively by an
-              authorized Academy Administrator.
-            </p>
-          </div>
 
           <p className="pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
             Student access is by Google sign-in only. Instructors and staff are invited by the academy.
