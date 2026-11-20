@@ -6,6 +6,15 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminApp, adminDb } from './firebaseAdmin.ts';
 import {
+  canJoin,
+  DEFAULT_JOIN_WINDOW_MINUTES,
+  safeHttpUrl,
+  sessionPhase,
+  validateAttendance,
+  validateSessionInput,
+  type StoredSessionStatus,
+} from '../src/lib/sessions.ts';
+import {
   isReviewDecision,
   planEnrollmentReview,
   validateEnrollmentSubmission,
@@ -332,6 +341,199 @@ app.post('/api/admin/enrollments/:id/review', sensitiveLimiter, requireAuth, req
     if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
     console.error('review failed', error);
     res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+});
+
+
+// ---------------------------------------------------------------------------
+// Live classes (Google Meet links are stored privately and released only inside the join window)
+// ---------------------------------------------------------------------------
+const sessionsCol = (batchId: string) => adminDb.collection('batches').doc(batchId).collection('liveSessions');
+const secretsCol = (batchId: string) => adminDb.collection('batches').doc(batchId).collection('sessionSecrets');
+
+/** Instructor of this batch, or Super Admin (who must have used MFA). */
+function requireBatchStaff(req: Request, res: Response, next: NextFunction) {
+  const user = (req as AuthedRequest).user;
+  if (user.role === 'SUPER_ADMIN') return requireRole('SUPER_ADMIN')(req, res, next);
+  if (user.role === 'INSTRUCTOR') return next();
+  res.status(403).json({ error: 'FORBIDDEN' });
+}
+
+async function loadManagedBatch(user: DecodedIdToken, batchId: string) {
+  const snap = await adminDb.collection('batches').doc(batchId).get();
+  if (!snap.exists) throw new HttpError(404, 'Batch not found.');
+  const batch = snap.data() as Record<string, any>;
+  if (user.role !== 'SUPER_ADMIN' && batch.instructorId !== user.uid) {
+    // An instructor must never touch another instructor's batch.
+    throw new HttpError(403, 'You are not assigned to this batch.');
+  }
+  return batch;
+}
+
+async function joinWindowMinutes(): Promise<number> {
+  const snap = await adminDb.collection('settings').doc('academy').get();
+  const v = Number(snap.data()?.joinWindowMinutes);
+  return Number.isFinite(v) && v >= 0 && v <= 240 ? v : DEFAULT_JOIN_WINDOW_MINUTES;
+}
+
+function handleError(res: Response, error: unknown, label: string) {
+  if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
+  console.error(label, error);
+  res.status(500).json({ error: 'SERVER_ERROR' });
+}
+
+app.post('/api/staff/sessions', sensitiveLimiter, requireAuth, requireBatchStaff, async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const parsed = validateSessionInput(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  try {
+    const batch = await loadManagedBatch(user, parsed.batchId);
+    const ref = parsed.sessionId ? sessionsCol(parsed.batchId).doc(parsed.sessionId) : sessionsCol(parsed.batchId).doc();
+    const existing = await ref.get();
+    if (parsed.sessionId && !existing.exists) throw new HttpError(404, 'Session not found.');
+    const batchWrite = adminDb.batch();
+    batchWrite.set(
+      ref,
+      {
+        id: ref.id,
+        courseId: batch.courseId,
+        batchId: parsed.batchId,
+        instructorId: batch.instructorId,
+        title: parsed.title,
+        scheduledStart: parsed.scheduledStart,
+        durationMinutes: parsed.durationMinutes,
+        meetingPlatform: 'Google Meet',
+        hasMeetingLink: true,
+        status: parsed.status,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp(), hasRecording: false }),
+      },
+      { merge: true }
+    );
+    batchWrite.set(secretsCol(parsed.batchId).doc(ref.id), { meetingUrl: parsed.meetingUrl, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await batchWrite.commit();
+    res.status(existing.exists ? 200 : 201).json({ id: ref.id });
+  } catch (error) {
+    handleError(res, error, 'session save failed');
+  }
+});
+
+app.post('/api/staff/sessions/:batchId/:sessionId/recording', sensitiveLimiter, requireAuth, requireBatchStaff, async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const { batchId, sessionId } = req.params as Record<string, string>;
+  const url = safeHttpUrl((req.body as { recordingUrl?: unknown })?.recordingUrl);
+  if (!url) return res.status(400).json({ error: 'Enter a valid https link to the recording.' });
+  try {
+    await loadManagedBatch(user, batchId);
+    const ref = sessionsCol(batchId).doc(sessionId);
+    if (!(await ref.get()).exists) throw new HttpError(404, 'Session not found.');
+    await secretsCol(batchId).doc(sessionId).set({ recordingUrl: url, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await ref.update({ hasRecording: true, status: 'completed', updatedAt: FieldValue.serverTimestamp() });
+    res.json({ ok: true });
+  } catch (error) {
+    handleError(res, error, 'recording save failed');
+  }
+});
+
+
+app.post('/api/staff/sessions/:batchId/:sessionId/status', sensitiveLimiter, requireAuth, requireBatchStaff, async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const { batchId, sessionId } = req.params as Record<string, string>;
+  const status = (req.body as { status?: unknown })?.status;
+  if (status !== 'completed' && status !== 'cancelled' && status !== 'scheduled') return res.status(400).json({ error: 'Invalid status.' });
+  try {
+    await loadManagedBatch(user, batchId);
+    const ref = sessionsCol(batchId).doc(sessionId);
+    if (!(await ref.get()).exists) throw new HttpError(404, 'Session not found.');
+    await ref.update({ status, updatedAt: FieldValue.serverTimestamp() });
+    res.json({ ok: true });
+  } catch (error) {
+    handleError(res, error, 'status failed');
+  }
+});
+
+app.put('/api/staff/sessions/:batchId/:sessionId/attendance', sensitiveLimiter, requireAuth, requireBatchStaff, async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const { batchId, sessionId } = req.params as Record<string, string>;
+  const parsed = validateAttendance(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  try {
+    await loadManagedBatch(user, batchId);
+    if (!(await sessionsCol(batchId).doc(sessionId).get()).exists) throw new HttpError(404, 'Session not found.');
+    // Only enrolled (approved/completed) students can have attendance recorded.
+    const enrolled = await adminDb
+      .collection('enrollments')
+      .where('batchId', '==', batchId)
+      .where('enrollmentStatus', 'in', OCCUPYING)
+      .get();
+    const roster = new Map(enrolled.docs.map((d) => [d.data().studentId as string, d.data().studentName as string]));
+    const write = adminDb.batch();
+    for (const r of parsed.records) {
+      if (!roster.has(r.studentId)) throw new HttpError(400, 'Attendance includes a student who is not enrolled in this batch.');
+      write.set(sessionsCol(batchId).doc(sessionId).collection('attendance').doc(r.studentId), {
+        studentId: r.studentId,
+        studentName: roster.get(r.studentId),
+        status: r.status,
+        markedBy: user.uid,
+        markedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await write.commit();
+    res.json({ ok: true, count: parsed.records.length });
+  } catch (error) {
+    handleError(res, error, 'attendance failed');
+  }
+});
+
+/**
+ * Releases the Meet link (kind=join, only inside the join window) or the recording link (kind=recording)
+ * to an enrolled student, or to the batch's instructor / admin. The URL is never in a client-readable document.
+ */
+app.post('/api/sessions/access', initLimiter, requireAuth, async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const { batchId, sessionId, kind } = (req.body ?? {}) as Record<string, unknown>;
+  if (typeof batchId !== 'string' || typeof sessionId !== 'string' || (kind !== 'join' && kind !== 'recording')) {
+    return res.status(400).json({ error: 'Invalid request.' });
+  }
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(batchId) || !/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId)) {
+    return res.status(400).json({ error: 'Invalid request.' });
+  }
+  try {
+    let staff = false;
+    if (user.role === 'SUPER_ADMIN' || user.role === 'INSTRUCTOR') {
+      await loadManagedBatch(user, batchId);
+      staff = true;
+    } else {
+      const enr = await adminDb.collection('enrollments').doc(`${user.uid}_${batchId}`).get();
+      if (!enr.exists || !OCCUPYING.includes(enr.data()?.enrollmentStatus)) {
+        return res.status(403).json({ error: 'You are not enrolled in this batch.' });
+      }
+    }
+    const sessionSnap = await sessionsCol(batchId).doc(sessionId).get();
+    if (!sessionSnap.exists) return res.status(404).json({ error: 'Session not found.' });
+    const session = sessionSnap.data() as Record<string, any>;
+    const secrets = (await secretsCol(batchId).doc(sessionId).get()).data() ?? {};
+
+    if (kind === 'recording') {
+      if (!secrets.recordingUrl) return res.status(404).json({ error: 'No recording available yet.' });
+      return res.json({ url: secrets.recordingUrl });
+    }
+    if (!staff) {
+      const phase = sessionPhase({
+        now: new Date(),
+        scheduledStart: session.scheduledStart,
+        durationMinutes: session.durationMinutes,
+        status: session.status as StoredSessionStatus,
+        joinWindowMinutes: await joinWindowMinutes(),
+      });
+      if (!canJoin(phase)) {
+        return res.status(403).json({ error: phase === 'upcoming' ? 'The class link opens shortly before the start time.' : 'This class is not open for joining.' });
+      }
+    }
+    if (!secrets.meetingUrl) return res.status(404).json({ error: 'The instructor has not added a Meet link yet.' });
+    res.json({ url: secrets.meetingUrl });
+  } catch (error) {
+    handleError(res, error, 'session access failed');
   }
 });
 

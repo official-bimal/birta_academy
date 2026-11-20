@@ -562,34 +562,28 @@ service cloud.firestore {
         allow delete: if isValidId(batchId) && isValidId(lessonId) && (isAdmin() || isBatchInstructor(batchId));
       }
 
+      // 6a. Session secrets (Meet link, recording link): never readable by students; released by the API.
+      match /sessionSecrets/{sessionId} {
+        allow get: if isValidId(batchId) && isValidId(sessionId) && (isAdmin() || isBatchInstructor(batchId));
+        allow list, write: if false;
+      }
+
       // 6b. Live Sessions (Master Gate: Admin, Assigned Instructor, or Approved Enrolled Student)
       match /liveSessions/{sessionId} {
         allow get: if isValidId(batchId) && isValidId(sessionId)
           && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
         allow list: if isValidId(batchId)
           && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
-        allow create: if isVerified()
-          && isValidId(batchId) && isValidId(sessionId)
-          && isValidLiveSession(incoming())
-          && incoming().id == sessionId
-          && incoming().batchId == batchId
-          && incoming().createdAt == request.time
-          && incoming().updatedAt == request.time
-          && (isAdmin() || isBatchInstructor(batchId));
-        allow update: if isVerified()
-          && isValidId(batchId) && isValidId(sessionId)
-          && isValidLiveSession(incoming())
-          && incoming().id == existing().id
-          && incoming().batchId == existing().batchId
-          && incoming().courseId == existing().courseId
-          && incoming().createdAt == existing().createdAt
-          && incoming().updatedAt == request.time
-          && (isAdmin() || isBatchInstructor(batchId))
-          && incoming().diff(existing()).affectedKeys().hasOnly([
-            'title', 'scheduledStart', 'durationMinutes', 'meetingPlatform',
-            'meetingUrl', 'status', 'updatedAt'
-          ]);
-        allow delete: if isValidId(batchId) && isValidId(sessionId) && (isAdmin() || isBatchInstructor(batchId));
+        // Sessions are written only by the trusted server (validates the Meet link, batch ownership).
+        allow create, update, delete: if false;
+
+        // Attendance: instructors/admin read all; a student reads only their own record. Server writes.
+        match /attendance/{studentId} {
+          allow get: if isValidId(batchId) && isValidId(sessionId) && isValidId(studentId)
+            && (isAdmin() || isBatchInstructor(batchId) || (isSignedIn() && request.auth.uid == studentId));
+          allow list: if isAdmin() || isBatchInstructor(batchId);
+          allow write: if false;
+        }
       }
 
       // 6c. Assignments (Master Gate)

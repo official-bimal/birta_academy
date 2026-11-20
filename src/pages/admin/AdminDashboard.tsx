@@ -96,6 +96,7 @@ export function AdminDashboard() {
     bankAccountNumber: '',
     esewaInstructions: '',
     khaltiInstructions: '',
+    joinWindowMinutes: 15,
   });
 
   // Review notes per enrollment
@@ -186,6 +187,7 @@ export function AdminDashboard() {
         bankAccountNumber: cfg.bankAccountNumber,
         esewaInstructions: cfg.esewaInstructions || '',
         khaltiInstructions: cfg.khaltiInstructions || '',
+        joinWindowMinutes: cfg.joinWindowMinutes ?? 15,
       });
 
       if (catData.categories.length > 0 && !courseForm.categoryId) {
@@ -1517,6 +1519,20 @@ export function AdminDashboard() {
                     setSettingsForm((p) => ({ ...p, khaltiInstructions: e.target.value }))
                   }
                   className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1" htmlFor="join-window">
+                  Live class join window (minutes before start)
+                </label>
+                <input
+                  id="join-window"
+                  type="number"
+                  min={0}
+                  max={240}
+                  value={settingsForm.joinWindowMinutes}
+                  onChange={(e) => setSettingsForm((p) => ({ ...p, joinWindowMinutes: Number(e.target.value) }))}
+                  className="w-32 px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
                 />
               </div>
               <button

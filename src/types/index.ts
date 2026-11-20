@@ -6,7 +6,7 @@ export type BatchStatus = 'upcoming' | 'ongoing' | 'completed';
 export type PaymentMethod = 'bank_transfer' | 'esewa_manual' | 'khalti_manual';
 export type PaymentStatus = 'pending_verification' | 'verified' | 'rejected' | 'waived';
 export type EnrollmentStatus = 'pending' | 'approved' | 'rejected' | 'completed';
-export type LiveSessionStatus = 'scheduled' | 'live' | 'completed';
+export type LiveSessionStatus = 'scheduled' | 'live' | 'completed' | 'cancelled';
 export type SubmissionStatus = 'submitted' | 'graded' | 'needs_revision';
 export type CertificateStatus = 'issued' | 'revoked';
 export type InquiryStatus = 'new' | 'responded' | 'closed';
@@ -143,7 +143,9 @@ export interface LiveSession {
   scheduledStart: string;
   durationMinutes: number;
   meetingPlatform: string;
-  meetingUrl?: string;
+  /** The Meet URL itself is private; it is released by the API inside the join window. */
+  hasMeetingLink?: boolean;
+  hasRecording?: boolean;
   status: LiveSessionStatus;
   createdAt?: DateValue;
   updatedAt?: DateValue;
@@ -247,5 +249,7 @@ export interface AcademySettings {
   bankAccountNumber: string;
   esewaInstructions?: string;
   khaltiInstructions?: string;
+  /** Minutes before start that students may join a live class (default 15). */
+  joinWindowMinutes?: number;
   updatedAt?: DateValue;
 }

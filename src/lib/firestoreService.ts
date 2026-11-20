@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { apiFetch } from './api';
+import { safeHttpUrl } from './sessions';
 import type { ReviewDecision } from './enrollmentPolicy';
 import {
   db,
@@ -273,6 +274,7 @@ export async function saveAcademySettings(
       bankAccountNumber: clampString(settings.bankAccountNumber, 60),
       esewaInstructions: clampString(settings.esewaInstructions, 300),
       khaltiInstructions: clampString(settings.khaltiInstructions, 300),
+      joinWindowMinutes: Math.max(0, Math.min(240, Number(settings.joinWindowMinutes ?? 15) || 0)),
       updatedAt: serverTimestamp(),
     });
     await setDoc(doc(db, 'settings', 'academy'), payload);
@@ -709,8 +711,8 @@ export async function saveBatchLesson(input: {
       moduleTitle: clampString(input.moduleTitle, 100),
       orderIndex: Math.max(0, Math.min(500, Number(input.orderIndex) || 1)),
       contentSummary: clampString(input.contentSummary, 1500),
-      videoUrl: clampString(input.videoUrl, LIMITS.URL_MAX),
-      resourceUrl: clampString(input.resourceUrl, LIMITS.URL_MAX),
+      videoUrl: safeHttpUrl(input.videoUrl) ?? undefined,
+      resourceUrl: safeHttpUrl(input.resourceUrl) ?? undefined,
       durationMinutes: Math.max(1, Math.min(600, Number(input.durationMinutes) || 45)),
       updatedAt: serverTimestamp(),
     });
@@ -753,47 +755,60 @@ export async function listBatchLiveSessions(batchId: string): Promise<LiveSessio
   }
 }
 
+/** Saved by the trusted server, which validates the Meet link and the instructor's ownership of the batch. */
 export async function saveBatchLiveSession(input: {
   id?: string;
-  courseId: string;
   batchId: string;
-  instructorId: string;
   title: string;
-  scheduledStart: string;
+  date: string;
+  time: string;
   durationMinutes: number;
-  meetingPlatform: string;
-  meetingUrl?: string;
-  status: LiveSessionStatus;
+  meetingUrl: string;
+  status?: 'scheduled' | 'completed' | 'cancelled';
 }): Promise<string> {
-  const isNew = !input.id;
-  const id = input.id || makeSafeId('session');
-  const path = `batches/${input.batchId}/liveSessions/${id}`;
-  try {
-    const shared = stripUndefined({
-      title: clampString(input.title, LIMITS.TITLE_MAX),
-      scheduledStart: clampString(input.scheduledStart, 40),
-      durationMinutes: Math.max(10, Math.min(480, Number(input.durationMinutes) || 90)),
-      meetingPlatform: clampString(input.meetingPlatform || 'Google Meet', 40),
-      meetingUrl: clampString(input.meetingUrl, LIMITS.URL_MAX),
-      status: input.status,
-      updatedAt: serverTimestamp(),
-    });
-    if (isNew) {
-      await setDoc(doc(db, 'batches', input.batchId, 'liveSessions', id), {
-        id,
-        courseId: input.courseId,
-        batchId: input.batchId,
-        instructorId: input.instructorId,
-        ...shared,
-        createdAt: serverTimestamp(),
-      });
-    } else {
-      await updateDoc(doc(db, 'batches', input.batchId, 'liveSessions', id), shared);
-    }
-    return id;
-  } catch (error) {
-    handleFirestoreError(error, isNew ? OperationType.CREATE : OperationType.UPDATE, path);
-  }
+  const res = await apiFetch<{ id: string }>('/staff/sessions', {
+    method: 'POST',
+    body: { ...input, sessionId: input.id },
+  });
+  return res.id;
+}
+
+export async function setSessionRecording(batchId: string, sessionId: string, recordingUrl: string): Promise<void> {
+  await apiFetch(`/staff/sessions/${batchId}/${sessionId}/recording`, { method: 'POST', body: { recordingUrl } });
+}
+
+export async function setSessionStatus(batchId: string, sessionId: string, status: 'scheduled' | 'completed' | 'cancelled'): Promise<void> {
+  await apiFetch(`/staff/sessions/${batchId}/${sessionId}/status`, { method: 'POST', body: { status } });
+}
+
+export interface AttendanceRecord {
+  studentId: string;
+  studentName: string;
+  status: 'present' | 'late' | 'absent' | 'excused';
+}
+
+export async function saveAttendance(
+  batchId: string,
+  sessionId: string,
+  records: { studentId: string; status: AttendanceRecord['status'] }[]
+): Promise<void> {
+  await apiFetch(`/staff/sessions/${batchId}/${sessionId}/attendance`, { method: 'PUT', body: { records } });
+}
+
+export async function listAttendance(batchId: string, sessionId: string): Promise<AttendanceRecord[]> {
+  const snap = await getDocs(collection(db, 'batches', batchId, 'liveSessions', sessionId, 'attendance'));
+  return snap.docs.map((d) => d.data() as AttendanceRecord);
+}
+
+export async function getOwnAttendance(batchId: string, sessionId: string, uid: string): Promise<AttendanceRecord | null> {
+  const snap = await getDoc(doc(db, 'batches', batchId, 'liveSessions', sessionId, 'attendance', uid));
+  return snap.exists() ? (snap.data() as AttendanceRecord) : null;
+}
+
+/** Asks the API for the Meet (or recording) link. Enforces enrollment and the join window server-side. */
+export async function requestSessionLink(batchId: string, sessionId: string, kind: 'join' | 'recording'): Promise<string> {
+  const res = await apiFetch<{ url: string }>('/sessions/access', { method: 'POST', body: { batchId, sessionId, kind } });
+  return res.url;
 }
 
 export async function listBatchAssignments(batchId: string): Promise<Assignment[]> {

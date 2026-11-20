@@ -15,8 +15,11 @@ import {
   TrendingUp,
   Video,
 } from 'lucide-react';
+import { StudentLiveClassCard } from '../../components/StudentLiveClassCard';
 import { DashboardShell, type DashboardNavItem } from '../../components/DashboardShell';
 import { useAuth } from '../../context/AuthContext';
+import { useCatalog } from '../../context/CatalogContext';
+import { safeHttpUrl } from '../../lib/sessions';
 import {
   listBatchAnnouncements,
   listBatchAssignments,
@@ -50,6 +53,7 @@ import type {
 
 export function StudentDashboard() {
   const { profile, refreshProfile } = useAuth();
+  const { settings } = useCatalog();
   const [activeTab, setActiveTab] = useState('overview');
 
   const [loading, setLoading] = useState(true);
@@ -576,46 +580,17 @@ export function StudentDashboard() {
             <div className="space-y-4">
               {allSessions.length === 0 ? (
                 <div className="p-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center text-sm text-slate-600 dark:text-slate-400">
-                  No scheduled live classes available yet. Live meeting links are accessible only
-                  for approved enrollments.
+                  No scheduled live classes yet. Class links appear here, shortly before each class, once your
+                  enrollment is approved.
                 </div>
               ) : (
                 allSessions.map((session) => (
-                  <div
+                  <StudentLiveClassCard
                     key={session.id}
-                    className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span className="font-medium text-brand-700 dark:text-brand-400">
-                          {session.courseTitle}
-                        </span>
-                        <span aria-hidden="true">·</span>
-                        <span className="capitalize">{session.status}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{session.meetingPlatform}</span>
-                      </div>
-                      <h3 className="mt-1.5 font-display text-base font-semibold text-slate-950 dark:text-white">
-                        {session.title}
-                      </h3>
-                      <p className="mt-1 text-xs font-mono tabular-nums text-slate-600 dark:text-slate-400">
-                        {formatDateTimeValue(session.scheduledStart)} · {session.durationMinutes} min
-                      </p>
-                    </div>
-                    {session.meetingUrl ? (
-                      <a
-                        href={session.meetingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 whitespace-nowrap shrink-0"
-                      >
-                        <span>Join Live Class</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    ) : (
-                      <span className="text-xs text-slate-500">Meeting link pending</span>
-                    )}
-                  </div>
+                    session={session}
+                    studentId={profile?.uid ?? ''}
+                    joinWindowMinutes={settings.joinWindowMinutes ?? 15}
+                  />
                 ))
               )}
             </div>
@@ -791,7 +766,7 @@ export function StudentDashboard() {
                             </p>
                             {activeLesson.videoUrl ? (
                               <a
-                                href={activeLesson.videoUrl}
+                                href={safeHttpUrl(activeLesson.videoUrl) ?? '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-500 transition-colors"
@@ -820,7 +795,7 @@ export function StudentDashboard() {
                           {activeLesson.resourceUrl && (
                             <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
                               <a
-                                href={activeLesson.resourceUrl}
+                                href={safeHttpUrl(activeLesson.resourceUrl) ?? '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:underline"
@@ -971,7 +946,7 @@ export function StudentDashboard() {
                         </p>
                       </div>
                       <a
-                        href={lesson.resourceUrl}
+                        href={safeHttpUrl(lesson.resourceUrl) ?? '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline whitespace-nowrap"

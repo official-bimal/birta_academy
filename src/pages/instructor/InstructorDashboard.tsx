@@ -9,6 +9,7 @@ import {
   Users,
   Video,
 } from 'lucide-react';
+import { StaffSessionManager } from '../../components/StaffSessionManager';
 import { DashboardShell, type DashboardNavItem } from '../../components/DashboardShell';
 import { useAuth } from '../../context/AuthContext';
 import { useCatalog } from '../../context/CatalogContext';
@@ -67,15 +68,6 @@ export function InstructorDashboard() {
     videoUrl: '',
     resourceUrl: '',
     durationMinutes: 45,
-  });
-
-  const [sessionForm, setSessionForm] = useState({
-    title: '',
-    scheduledStart: '2026-12-10T19:30',
-    durationMinutes: 90,
-    meetingPlatform: 'Google Meet',
-    meetingUrl: '',
-    status: 'scheduled' as LiveSessionStatus,
   });
 
   const [asgnForm, setAsgnForm] = useState({
@@ -195,26 +187,6 @@ export function InstructorDashboard() {
     try {
       await deleteBatchLesson(activeBatch.id, lessonId);
       setNotice('Lesson removed.');
-      await loadInstructorData();
-    } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
-    }
-  };
-
-  const handleAddSession = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeBatch) return;
-    setErrorMsg(null);
-    setNotice(null);
-    try {
-      await saveBatchLiveSession({
-        courseId: activeBatch.courseId,
-        batchId: activeBatch.id,
-        instructorId: activeBatch.instructorId,
-        ...sessionForm,
-      });
-      setSessionForm((prev) => ({ ...prev, title: '', meetingUrl: '' }));
-      setNotice('Live session scheduled.');
       await loadInstructorData();
     } catch (err) {
       setErrorMsg(parseFirestoreErrorMessage(err));
@@ -400,77 +372,12 @@ export function InstructorDashboard() {
 
           {/* LIVE SESSIONS */}
           {activeTab === 'live' && activeBatch && (
-            <div className="space-y-6">
-              <form
-                onSubmit={handleAddSession}
-                className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4"
-              >
-                <h2 className="font-display text-base font-semibold text-slate-950 dark:text-white">
-                  Schedule Live Session — {activeBatch.name}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Session title (e.g. Week 2 Live Q&A)"
-                    value={sessionForm.title}
-                    onChange={(e) => setSessionForm((p) => ({ ...p, title: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="datetime-local"
-                    required
-                    value={sessionForm.scheduledStart}
-                    onChange={(e) =>
-                      setSessionForm((p) => ({ ...p, scheduledStart: e.target.value }))
-                    }
-                    className="px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Platform (Google Meet / Zoom)"
-                    value={sessionForm.meetingPlatform}
-                    onChange={(e) =>
-                      setSessionForm((p) => ({ ...p, meetingPlatform: e.target.value }))
-                    }
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="url"
-                    placeholder="Meeting URL (gated to approved students)"
-                    value={sessionForm.meetingUrl}
-                    onChange={(e) => setSessionForm((p) => ({ ...p, meetingUrl: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90"
-                >
-                  Add Live Session
-                </button>
-              </form>
-
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-200 dark:divide-slate-800">
-                {sessions.map((s) => (
-                  <div key={s.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm text-slate-950 dark:text-white">{s.title}</p>
-                      <p className="text-xs text-slate-500 font-mono">
-                        {formatDateTimeValue(s.scheduledStart)} · {s.meetingPlatform} · {s.durationMinutes} min
-                      </p>
-                    </div>
-                    <span className="text-xs font-mono text-slate-500 truncate max-w-xs">
-                      {s.meetingUrl || 'No meeting link yet'}
-                    </span>
-                  </div>
-                ))}
-                {sessions.length === 0 && (
-                  <p className="p-6 text-sm text-slate-500 text-center">No live sessions scheduled yet.</p>
-                )}
-              </div>
-            </div>
+            <StaffSessionManager
+              batch={activeBatch}
+              sessions={sessions}
+              students={batchEnrollments}
+              onChanged={loadInstructorData}
+            />
           )}
 
           {/* LESSONS & RESOURCES */}
