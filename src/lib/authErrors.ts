@@ -10,6 +10,8 @@ export function describeStudentSignInFailure(error: unknown): string {
       case 'SERVICE_UNAVAILABLE':
       case 'SERVICE_NOT_CONFIGURED':
         return 'Sign-in is temporarily unavailable. Please try again in a few minutes, or contact the academy.';
+      case 'RATE_LIMITED':
+        return 'Too many attempts. Please wait a few minutes and try again.';
       case 'NOT_ALLOWED':
         return 'Please sign in with a verified Google account.';
       default:

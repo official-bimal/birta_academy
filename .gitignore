@@ -9,3 +9,4 @@ coverage/
 
 *service-account*.json
 .env
+.dev-test-accounts.local.txt

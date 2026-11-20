@@ -96,8 +96,8 @@ function requireRole(role: ClaimRole) {
   };
 }
 
-const sensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
-const initLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false });
+const sensitiveLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.RATE_LIMIT_SENSITIVE) || 30, standardHeaders: true, legacyHeaders: false, message: { error: 'RATE_LIMITED' } });
+const initLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.RATE_LIMIT_INIT) || 60, standardHeaders: true, legacyHeaders: false, message: { error: 'RATE_LIMITED' } });
 
 async function audit(actor: DecodedIdToken, action: string, targetId: string, summary: string) {
   await adminDb.collection('auditLogs').add({

@@ -19,7 +19,7 @@ import { StudentLiveClassCard } from '../../components/StudentLiveClassCard';
 import { DashboardShell, type DashboardNavItem } from '../../components/DashboardShell';
 import { useAuth } from '../../context/AuthContext';
 import { useCatalog } from '../../context/CatalogContext';
-import { safeHttpUrl } from '../../lib/sessions';
+import { formatNptDateTime, safeHttpUrl } from '../../lib/sessions';
 import {
   listBatchAnnouncements,
   listBatchAssignments,
@@ -475,7 +475,7 @@ export function StudentDashboard() {
                               {s.title}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-                              {formatDateTimeValue(s.scheduledStart)} · {s.durationMinutes} min
+                              {formatNptDateTime(s.scheduledStart)} · {s.durationMinutes} min
                             </p>
                           </li>
                         ))}
