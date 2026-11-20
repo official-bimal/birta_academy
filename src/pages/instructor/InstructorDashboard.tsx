@@ -9,6 +9,7 @@ import {
   Users,
   Video,
 } from 'lucide-react';
+import { safeHttpUrl } from '../../lib/sessions';
 import { StaffSessionManager } from '../../components/StaffSessionManager';
 import { DashboardShell, type DashboardNavItem } from '../../components/DashboardShell';
 import { useAuth } from '../../context/AuthContext';
@@ -562,7 +563,7 @@ export function InstructorDashboard() {
                         <p className="text-xs break-all">
                           Link:{' '}
                           <a
-                            href={sub.submissionUrl}
+                            href={safeHttpUrl(sub.submissionUrl) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-brand-700 dark:text-brand-400 underline"

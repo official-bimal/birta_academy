@@ -26,6 +26,8 @@ export const DEFAULT_ACADEMY_SETTINGS: AcademySettings = {
     'Direct eSewa gateway activates once merchant credentials are configured. For manual verification, transfer to the configured eSewa ID and submit your transaction code.',
   khaltiInstructions:
     'Direct Khalti gateway activates once live merchant keys are configured. For manual verification, submit your Khalti reference ID below for admin approval.',
+  joinWindowMinutes: 15,
+  certificateCriteria: { minLessonPercent: 80, requireAssignments: true, minAssignmentPercent: 50 },
 };
 
 export const DEMO_CATEGORIES: Category[] = [

@@ -251,5 +251,6 @@ export interface AcademySettings {
   khaltiInstructions?: string;
   /** Minutes before start that students may join a live class (default 15). */
   joinWindowMinutes?: number;
+  certificateCriteria: { minLessonPercent: number; requireAssignments: boolean; minAssignmentPercent: number };
   updatedAt?: DateValue;
 }

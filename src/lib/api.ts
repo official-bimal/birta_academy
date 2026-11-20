@@ -1,7 +1,7 @@
 import { auth } from './firebase';
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message?: string) {
+  constructor(public status: number, public code: string, message?: string, public details?: unknown) {
     super(message || code);
   }
 }
@@ -19,7 +19,7 @@ export async function apiFetch<T>(path: string, init: { method?: string; body?: 
     },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  const data = (await res.json().catch(() => ({}))) as { error?: string } & T;
-  if (!res.ok) throw new ApiError(res.status, data.error ?? 'SERVER_ERROR', data.error);
+  const data = (await res.json().catch(() => ({}))) as { error?: string; reasons?: unknown } & T;
+  if (!res.ok) throw new ApiError(res.status, data.error ?? 'SERVER_ERROR', data.error, data.reasons);
   return data;
 }

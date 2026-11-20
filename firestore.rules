@@ -663,36 +663,8 @@ service cloud.firestore {
         resource.data.instructorId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isVerified()
-        && isValidId(submissionId)
-        && isValidSubmission(incoming())
-        && incoming().id == submissionId
-        && incoming().studentId == request.auth.uid
-        && incoming().status == 'submitted'
-        && !('score' in incoming())
-        && !('feedback' in incoming())
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
-        && isApprovedEnrolledInBatch(incoming().batchId);
-      allow update: if isVerified()
-        && isValidId(submissionId)
-        && isValidSubmission(incoming())
-        && incoming().id == existing().id
-        && incoming().studentId == existing().studentId
-        && incoming().assignmentId == existing().assignmentId
-        && incoming().batchId == existing().batchId
-        && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
-        && (
-          // Tier 1: Admin or Instructor grades submission
-          ((isAdmin() || existing().instructorId == request.auth.uid)
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'score', 'feedback', 'updatedAt'])) ||
-          // Tier 2: Student revises submission only if not yet graded
-          (existing().studentId == request.auth.uid
-            && existing().status != 'graded'
-            && incoming().status == 'submitted'
-            && incoming().diff(existing()).affectedKeys().hasOnly(['submissionUrl', 'notes', 'status', 'updatedAt']))
-        );
+      // Submissions and grades are written only by the trusted server (enrollment, ownership, max score).
+      allow create, update: if false;
       allow delete: if false;
     }
 
@@ -733,20 +705,8 @@ service cloud.firestore {
       allow list: if isSignedIn() && (
         resource.data.studentId == request.auth.uid || isAdmin()
       );
-      allow create: if isAdmin()
-        && isValidId(certificateId)
-        && isValidCertificate(incoming())
-        && incoming().id == certificateId
-        && incoming().issuedBy == request.auth.uid
-        && incoming().issuedAt == request.time;
-      allow update: if isAdmin()
-        && isValidId(certificateId)
-        && isValidCertificate(incoming())
-        && incoming().id == existing().id
-        && incoming().studentId == existing().studentId
-        && incoming().certificateCode == existing().certificateCode
-        && incoming().issuedAt == existing().issuedAt
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      // Certificates are issued and revoked only by the trusted server after eligibility checks.
+      allow create, update: if false;
       allow delete: if false;
     }
 
@@ -754,11 +714,7 @@ service cloud.firestore {
     match /certificateVerifications/{code} {
       allow get: if isValidId(code);
       allow list: if false;
-      allow create, update: if isAdmin()
-        && isValidId(code)
-        && incoming().keys().hasOnly(['certificateCode', 'studentName', 'courseTitle', 'status', 'issuedAt'])
-        && incoming().certificateCode == code
-        && incoming().status in ['issued', 'revoked'];
+      allow create, update: if false;
       allow delete: if false;
     }
 

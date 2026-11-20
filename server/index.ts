@@ -6,6 +6,13 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminApp, adminDb } from './firebaseAdmin.ts';
 import {
+  canResubmit,
+  evaluateCertificateEligibility,
+  isLateSubmission,
+  resolveCriteria,
+  validateGrade,
+} from '../src/lib/certificates.ts';
+import {
   canJoin,
   DEFAULT_JOIN_WINDOW_MINUTES,
   safeHttpUrl,
@@ -534,6 +541,212 @@ app.post('/api/sessions/access', initLimiter, requireAuth, async (req, res) => {
     res.json({ url: secrets.meetingUrl });
   } catch (error) {
     handleError(res, error, 'session access failed');
+  }
+});
+
+
+// ---------------------------------------------------------------------------
+// Assignments: submissions and grading
+// ---------------------------------------------------------------------------
+app.post('/api/submissions', initLimiter, requireAuth, requireRole('STUDENT'), async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const idRe = /^[a-zA-Z0-9_-]{1,128}$/;
+  const url = safeHttpUrl(b.submissionUrl);
+  const notes = typeof b.notes === 'string' ? b.notes.trim().slice(0, 1000) : '';
+  if (typeof b.batchId !== 'string' || !idRe.test(b.batchId) || typeof b.assignmentId !== 'string' || !idRe.test(b.assignmentId)) {
+    return res.status(400).json({ error: 'Invalid assignment.' });
+  }
+  if (!url) return res.status(400).json({ error: 'Enter a valid https link to your work.' });
+  try {
+    const enr = await adminDb.collection('enrollments').doc(`${user.uid}_${b.batchId}`).get();
+    if (!enr.exists || !OCCUPYING.includes(enr.data()?.enrollmentStatus)) {
+      return res.status(403).json({ error: 'You are not enrolled in this batch.' });
+    }
+    const asgnSnap = await adminDb.collection('batches').doc(b.batchId).collection('assignments').doc(b.assignmentId).get();
+    if (!asgnSnap.exists) return res.status(404).json({ error: 'Assignment not found.' });
+    const asgn = asgnSnap.data() as Record<string, any>;
+    const profile = (await adminDb.collection('users').doc(user.uid).get()).data() ?? {};
+    const id = `${user.uid}_${b.assignmentId}`;
+    const ref = adminDb.collection('submissions').doc(id);
+    await adminDb.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      const prev = existing.exists ? (existing.data() as Record<string, any>) : null;
+      if (prev && !canResubmit(prev.status)) throw new HttpError(409, 'This submission has already been graded.');
+      const late = isLateSubmission(String(asgn.dueDate), new Date());
+      const fields = {
+        submissionUrl: url,
+        notes,
+        status: 'submitted',
+        late,
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      if (prev) {
+        // keep earlier feedback visible, clear the old score until re-graded
+        tx.update(ref, { ...fields, score: FieldValue.delete(), resubmissions: FieldValue.increment(1) });
+      } else {
+        tx.create(ref, {
+          id,
+          assignmentId: b.assignmentId,
+          courseId: asgn.courseId,
+          batchId: b.batchId,
+          studentId: user.uid,
+          studentName: String(profile.displayName ?? '').slice(0, 100),
+          instructorId: asgn.instructorId,
+          ...fields,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
+    res.status(201).json({ id });
+  } catch (error) {
+    handleError(res, error, 'submission failed');
+  }
+});
+
+app.post('/api/staff/submissions/:id/grade', sensitiveLimiter, requireAuth, requireBatchStaff, async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  try {
+    const ref = adminDb.collection('submissions').doc(String(req.params.id));
+    const snap = await ref.get();
+    if (!snap.exists) throw new HttpError(404, 'Submission not found.');
+    const sub = snap.data() as Record<string, any>;
+    await loadManagedBatch(user, sub.batchId);
+    const asgn = (await adminDb.collection('batches').doc(sub.batchId).collection('assignments').doc(sub.assignmentId).get()).data();
+    const parsed = validateGrade(req.body, Number(asgn?.maxScore ?? 100));
+    if (!parsed.ok) throw new HttpError(400, parsed.error);
+    await ref.update({
+      status: parsed.status,
+      score: parsed.score,
+      feedback: parsed.feedback,
+      gradedBy: user.uid,
+      gradedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    handleError(res, error, 'grading failed');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Certificates: issued only after server-side eligibility checks
+// ---------------------------------------------------------------------------
+async function evaluateEnrollment(enrollmentId: string) {
+  const enrSnap = await adminDb.collection('enrollments').doc(enrollmentId).get();
+  if (!enrSnap.exists) throw new HttpError(404, 'Enrollment not found.');
+  const enr = enrSnap.data() as Record<string, any>;
+  const batchRef = adminDb.collection('batches').doc(String(enr.batchId));
+  const [lessons, assignments, progress, subs, settings] = await Promise.all([
+    batchRef.collection('lessons').get(),
+    batchRef.collection('assignments').get(),
+    adminDb.collection('lessonProgress').where('studentId', '==', enr.studentId).where('batchId', '==', enr.batchId).get(),
+    adminDb.collection('submissions').where('studentId', '==', enr.studentId).where('batchId', '==', enr.batchId).get(),
+    adminDb.collection('settings').doc('academy').get(),
+  ]);
+  const lessonIds = new Set(lessons.docs.map((d) => d.id));
+  const completed = progress.docs.filter((d) => d.data().completed === true && lessonIds.has(String(d.data().lessonId))).length;
+  const criteria = resolveCriteria(settings.data()?.certificateCriteria);
+  const result = evaluateCertificateEligibility({
+    enrollmentStatus: enr.enrollmentStatus,
+    paymentStatus: enr.paymentStatus,
+    totalLessons: lessons.size,
+    completedLessons: completed,
+    assignments: assignments.docs.map((d) => ({ id: d.id, maxScore: Number(d.data().maxScore ?? 100) })),
+    submissions: subs.docs.map((d) => ({ assignmentId: d.data().assignmentId, status: d.data().status, score: d.data().score })),
+    criteria,
+  });
+  return { enr, result };
+}
+
+app.get('/api/admin/enrollments/:id/eligibility', sensitiveLimiter, requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  try {
+    const { result } = await evaluateEnrollment(String(req.params.id));
+    res.json(result);
+  } catch (error) {
+    handleError(res, error, 'eligibility failed');
+  }
+});
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function newCertificateCode(): string {
+  let tail = '';
+  for (let i = 0; i < 10; i++) tail += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
+  return `BA-${new Date().getUTCFullYear()}-${tail}`;
+}
+
+app.post('/api/admin/certificates', sensitiveLimiter, requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  const actor = (req as AuthedRequest).user;
+  const enrollmentId = (req.body as { enrollmentId?: unknown })?.enrollmentId;
+  if (typeof enrollmentId !== 'string' || !/^[a-zA-Z0-9_-]{1,260}$/.test(enrollmentId)) {
+    return res.status(400).json({ error: 'Invalid enrollment.' });
+  }
+  try {
+    const { enr, result } = await evaluateEnrollment(enrollmentId);
+    if (!result.eligible) return res.status(409).json({ error: 'NOT_ELIGIBLE', reasons: result.reasons });
+
+    const certRef = adminDb.collection('certificates').doc(enrollmentId);
+    const existing = await certRef.get();
+    if (existing.exists) return res.json({ code: existing.data()?.certificateCode, existing: true });
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = newCertificateCode();
+      const verifyRef = adminDb.collection('certificateVerifications').doc(code);
+      try {
+        await adminDb.runTransaction(async (tx) => {
+          if ((await tx.get(certRef)).exists) throw new HttpError(409, 'Already issued.');
+          if ((await tx.get(verifyRef)).exists) throw new Error('CODE_COLLISION');
+          tx.create(certRef, {
+            id: enrollmentId,
+            certificateCode: code,
+            studentId: enr.studentId,
+            studentName: enr.studentName,
+            courseId: enr.courseId,
+            courseTitle: enr.courseTitle,
+            batchId: enr.batchId,
+            batchName: enr.batchName,
+            issuedBy: actor.uid,
+            status: 'issued',
+            issuedAt: FieldValue.serverTimestamp(),
+          });
+          tx.create(verifyRef, {
+            certificateCode: code,
+            studentName: enr.studentName,
+            courseTitle: enr.courseTitle,
+            status: 'issued',
+            issuedAt: FieldValue.serverTimestamp(),
+          });
+        });
+        await audit(actor, 'ISSUE_CERTIFICATE', enrollmentId, `Issued ${code} to ${enr.studentEmail} for ${enr.courseTitle}`);
+        return res.status(201).json({ code });
+      } catch (e) {
+        if (e instanceof Error && e.message === 'CODE_COLLISION') continue;
+        throw e;
+      }
+    }
+    throw new Error('Could not allocate a unique certificate code');
+  } catch (error) {
+    handleError(res, error, 'certificate failed');
+  }
+});
+
+app.post('/api/admin/certificates/:id/status', sensitiveLimiter, requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  const actor = (req as AuthedRequest).user;
+  const status = (req.body as { status?: unknown })?.status;
+  if (status !== 'issued' && status !== 'revoked') return res.status(400).json({ error: 'Invalid status.' });
+  try {
+    const ref = adminDb.collection('certificates').doc(String(req.params.id));
+    const snap = await ref.get();
+    if (!snap.exists) throw new HttpError(404, 'Certificate not found.');
+    const code = String(snap.data()?.certificateCode);
+    const write = adminDb.batch();
+    write.update(ref, { status });
+    write.update(adminDb.collection('certificateVerifications').doc(code), { status });
+    await write.commit();
+    await audit(actor, status === 'revoked' ? 'REVOKE_CERTIFICATE' : 'REINSTATE_CERTIFICATE', ref.id, `${status} ${code}`);
+    res.json({ ok: true });
+  } catch (error) {
+    handleError(res, error, 'certificate status failed');
   }
 });
 

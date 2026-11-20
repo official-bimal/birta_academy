@@ -862,7 +862,7 @@ export function StudentDashboard() {
                           <p className="text-slate-600 dark:text-slate-400 break-all">
                             Submitted URL:{' '}
                             <a
-                              href={sub.submissionUrl}
+                              href={safeHttpUrl(sub.submissionUrl) ?? '#'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-brand-700 dark:text-brand-400 underline"

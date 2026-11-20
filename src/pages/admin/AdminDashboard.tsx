@@ -42,6 +42,7 @@ import {
 } from '../../lib/firestoreService';
 import { parseFirestoreErrorMessage } from '../../lib/firebase';
 import { ApiError } from '../../lib/api';
+import { REASON_TEXT, type EligibilityReason } from '../../lib/certificates';
 import { allowedDecisions, type ReviewDecision } from '../../lib/enrollmentPolicy';
 import {
   formatDateTimeValue,
@@ -97,6 +98,7 @@ export function AdminDashboard() {
     esewaInstructions: '',
     khaltiInstructions: '',
     joinWindowMinutes: 15,
+    certificateCriteria: { minLessonPercent: 80, requireAssignments: true, minAssignmentPercent: 50 },
   });
 
   // Review notes per enrollment
@@ -188,6 +190,7 @@ export function AdminDashboard() {
         esewaInstructions: cfg.esewaInstructions || '',
         khaltiInstructions: cfg.khaltiInstructions || '',
         joinWindowMinutes: cfg.joinWindowMinutes ?? 15,
+        certificateCriteria: cfg.certificateCriteria ?? { minLessonPercent: 80, requireAssignments: true, minAssignmentPercent: 50 },
       });
 
       if (catData.categories.length > 0 && !courseForm.categoryId) {
@@ -451,7 +454,12 @@ export function AdminDashboard() {
       await loadAdminData();
       setNotice(`Issued completion certificate ${code} to ${enr.studentName}.`);
     } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
+      if (err instanceof ApiError && err.code === 'NOT_ELIGIBLE') {
+        const reasons = (err.details as EligibilityReason[] | undefined) ?? [];
+        setErrorMsg(`Not eligible yet: ${reasons.map((r) => REASON_TEXT[r] ?? r).join(' ')}`);
+      } else {
+        setErrorMsg(err instanceof ApiError ? err.message : parseFirestoreErrorMessage(err));
+      }
     } finally {
       setBusyAction(null);
     }
@@ -1271,7 +1279,7 @@ export function AdminDashboard() {
             <div className="space-y-6">
               <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
                 <h2 className="font-display text-base font-semibold text-slate-950 dark:text-white">
-                  Issue Completion Certificate to Approved Student
+                  Issue Completion Certificate (server checks lessons, assignments and payment)
                 </h2>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {enrollments
@@ -1535,6 +1543,28 @@ export function AdminDashboard() {
                   className="w-32 px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
                 />
               </div>
+              <fieldset className="space-y-3 pt-2">
+                <legend className="text-xs font-semibold">Certificate eligibility</legend>
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  <label className="flex items-center gap-2">
+                    Min. lessons completed (%)
+                    <input type="number" min={0} max={100} value={settingsForm.certificateCriteria.minLessonPercent}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, certificateCriteria: { ...p.certificateCriteria, minLessonPercent: Number(e.target.value) } }))}
+                      className="w-20 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950" />
+                  </label>
+                  <label className="flex items-center gap-2">
+                    Min. assignment score (%)
+                    <input type="number" min={0} max={100} value={settingsForm.certificateCriteria.minAssignmentPercent}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, certificateCriteria: { ...p.certificateCriteria, minAssignmentPercent: Number(e.target.value) } }))}
+                      className="w-20 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950" />
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={settingsForm.certificateCriteria.requireAssignments}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, certificateCriteria: { ...p.certificateCriteria, requireAssignments: e.target.checked } }))} />
+                    Require all assignments graded
+                  </label>
+                </div>
+              </fieldset>
               <button
                 type="submit"
                 disabled={busyAction === 'settings'}

@@ -250,7 +250,12 @@ export async function fetchAcademySettings(): Promise<AcademySettings> {
   try {
     const snap = await getDoc(doc(db, 'settings', 'academy'));
     if (snap.exists()) {
-      return snap.data() as AcademySettings;
+      const data = snap.data() as Partial<AcademySettings>;
+      return {
+        ...DEFAULT_ACADEMY_SETTINGS,
+        ...data,
+        certificateCriteria: { ...DEFAULT_ACADEMY_SETTINGS.certificateCriteria, ...data.certificateCriteria },
+      } as AcademySettings;
     }
     return DEFAULT_ACADEMY_SETTINGS;
   } catch {
@@ -275,6 +280,11 @@ export async function saveAcademySettings(
       esewaInstructions: clampString(settings.esewaInstructions, 300),
       khaltiInstructions: clampString(settings.khaltiInstructions, 300),
       joinWindowMinutes: Math.max(0, Math.min(240, Number(settings.joinWindowMinutes ?? 15) || 0)),
+      certificateCriteria: {
+        minLessonPercent: Math.max(0, Math.min(100, Number(settings.certificateCriteria?.minLessonPercent ?? 80))),
+        requireAssignments: settings.certificateCriteria?.requireAssignments ?? true,
+        minAssignmentPercent: Math.max(0, Math.min(100, Number(settings.certificateCriteria?.minAssignmentPercent ?? 50))),
+      },
       updatedAt: serverTimestamp(),
     });
     await setDoc(doc(db, 'settings', 'academy'), payload);
@@ -972,50 +982,23 @@ export async function listInstructorSubmissions(instructorId: string, isAdminUse
   }
 }
 
+/** Submissions are created by the trusted server (enrollment, due date, ownership are verified there). */
 export async function submitAssignmentWork(params: {
   assignment: Assignment;
   student: UserProfile;
   submissionUrl: string;
   notes?: string;
 }): Promise<string> {
-  const id = `${params.student.uid}_${params.assignment.id}`;
-  const path = `submissions/${id}`;
-  try {
-    const ref = doc(db, 'submissions', id);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      await updateDoc(
-        ref,
-        stripUndefined({
-          submissionUrl: clampString(params.submissionUrl, LIMITS.URL_MAX),
-          notes: clampString(params.notes, 1000),
-          status: 'submitted',
-          updatedAt: serverTimestamp(),
-        })
-      );
-      return id;
-    }
-    await setDoc(
-      ref,
-      stripUndefined({
-        id,
-        assignmentId: params.assignment.id,
-        courseId: params.assignment.courseId,
-        batchId: params.assignment.batchId,
-        studentId: params.student.uid,
-        studentName: clampString(params.student.displayName, LIMITS.NAME_MAX),
-        instructorId: params.assignment.instructorId,
-        submissionUrl: clampString(params.submissionUrl, LIMITS.URL_MAX),
-        notes: clampString(params.notes, 1000),
-        status: 'submitted',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-    );
-    return id;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
+  const res = await apiFetch<{ id: string }>('/submissions', {
+    method: 'POST',
+    body: {
+      batchId: params.assignment.batchId,
+      assignmentId: params.assignment.id,
+      submissionUrl: params.submissionUrl,
+      notes: params.notes ?? '',
+    },
+  });
+  return res.id;
 }
 
 export async function gradeSubmission(params: {
@@ -1024,17 +1007,10 @@ export async function gradeSubmission(params: {
   score: number;
   feedback: string;
 }): Promise<void> {
-  const path = `submissions/${params.submissionId}`;
-  try {
-    await updateDoc(doc(db, 'submissions', params.submissionId), {
-      status: params.status,
-      score: Math.max(0, Math.min(1000, Number(params.score) || 0)),
-      feedback: clampString(params.feedback, 1000),
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
-  }
+  await apiFetch(`/staff/submissions/${encodeURIComponent(params.submissionId)}/grade`, {
+    method: 'POST',
+    body: { status: params.status, score: params.score, feedback: params.feedback },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1062,46 +1038,16 @@ export async function listAllCertificates(): Promise<Certificate[]> {
   }
 }
 
+/** Issued by the server only if eligibility checks pass; throws ApiError('NOT_ELIGIBLE') with reasons otherwise. */
 export async function adminIssueCertificate(params: {
   enrollment: Enrollment;
   actor: UserProfile;
 }): Promise<string> {
-  const id = `${params.enrollment.studentId}_${params.enrollment.batchId}`;
-  const path = `certificates/${id}`;
-  const code = `BA-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-  try {
-    await setDoc(doc(db, 'certificates', id), {
-      id,
-      certificateCode: code,
-      studentId: params.enrollment.studentId,
-      studentName: clampString(params.enrollment.studentName, LIMITS.NAME_MAX),
-      courseId: params.enrollment.courseId,
-      courseTitle: clampString(params.enrollment.courseTitle, LIMITS.TITLE_MAX),
-      batchId: params.enrollment.batchId,
-      batchName: clampString(params.enrollment.batchName, 120),
-      issuedBy: params.actor.uid,
-      status: 'issued',
-      issuedAt: serverTimestamp(),
-    });
-    await setDoc(doc(db, 'certificateVerifications', code), {
-      certificateCode: code,
-      studentName: clampString(params.enrollment.studentName, LIMITS.NAME_MAX),
-      courseTitle: clampString(params.enrollment.courseTitle, LIMITS.TITLE_MAX),
-      status: 'issued',
-      issuedAt: serverTimestamp(),
-    });
-    await writeAuditLog({
-      actorId: params.actor.uid,
-      actorEmail: params.actor.email,
-      action: 'ISSUE_CERTIFICATE',
-      targetCollection: 'certificates',
-      targetId: id,
-      summary: `Issued certificate ${code} to ${params.enrollment.studentName} for ${params.enrollment.courseTitle}`,
-    });
-    return code;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, path);
-  }
+  const res = await apiFetch<{ code: string }>('/admin/certificates', {
+    method: 'POST',
+    body: { enrollmentId: params.enrollment.id },
+  });
+  return res.code;
 }
 
 export async function adminToggleCertificateStatus(params: {
@@ -1109,25 +1055,18 @@ export async function adminToggleCertificateStatus(params: {
   nextStatus: 'issued' | 'revoked';
   actor: UserProfile;
 }): Promise<void> {
-  const path = `certificates/${params.certificate.id}`;
-  try {
-    await updateDoc(doc(db, 'certificates', params.certificate.id), {
-      status: params.nextStatus,
-    });
-    await updateDoc(doc(db, 'certificateVerifications', params.certificate.certificateCode), {
-      status: params.nextStatus,
-    });
-    await writeAuditLog({
-      actorId: params.actor.uid,
-      actorEmail: params.actor.email,
-      action: 'UPDATE_CERTIFICATE_STATUS',
-      targetCollection: 'certificates',
-      targetId: params.certificate.id,
-      summary: `Changed certificate ${params.certificate.certificateCode} status to ${params.nextStatus}`,
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
-  }
+  await apiFetch(`/admin/certificates/${encodeURIComponent(params.certificate.id)}/status`, {
+    method: 'POST',
+    body: { status: params.nextStatus },
+  });
+}
+
+export async function getCertificateEligibility(enrollmentId: string): Promise<{
+  eligible: boolean;
+  reasons: string[];
+  lessonPercent: number;
+}> {
+  return apiFetch(`/admin/enrollments/${encodeURIComponent(enrollmentId)}/eligibility`);
 }
 
 // ---------------------------------------------------------------------------
