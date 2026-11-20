@@ -4,7 +4,7 @@ export type UserRole = 'student' | 'instructor' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type BatchStatus = 'upcoming' | 'ongoing' | 'completed';
 export type PaymentMethod = 'bank_transfer' | 'esewa_manual' | 'khalti_manual';
-export type PaymentStatus = 'pending_verification' | 'verified' | 'rejected';
+export type PaymentStatus = 'pending_verification' | 'verified' | 'rejected' | 'waived';
 export type EnrollmentStatus = 'pending' | 'approved' | 'rejected' | 'completed';
 export type LiveSessionStatus = 'scheduled' | 'live' | 'completed';
 export type SubmissionStatus = 'submitted' | 'graded' | 'needs_revision';
@@ -112,6 +112,8 @@ export interface Enrollment {
   enrollmentStatus: EnrollmentStatus;
   reviewedBy?: string;
   reviewNote?: string;
+  verifiedAt?: DateValue;
+  verifiedBy?: string;
   createdAt?: DateValue;
   updatedAt?: DateValue;
 }

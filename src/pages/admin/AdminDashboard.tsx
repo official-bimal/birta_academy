@@ -41,6 +41,8 @@ import {
   seedSampleCatalog,
 } from '../../lib/firestoreService';
 import { parseFirestoreErrorMessage } from '../../lib/firebase';
+import { ApiError } from '../../lib/api';
+import { allowedDecisions, type ReviewDecision } from '../../lib/enrollmentPolicy';
 import {
   formatDateTimeValue,
   formatDateValue,
@@ -413,34 +415,26 @@ export function AdminDashboard() {
     }
   };
 
-  const handleReviewEnrollment = async (
-    enr: Enrollment,
-    decision: 'approve' | 'reject' | 'complete'
-  ) => {
+  const handleReviewEnrollment = async (enr: Enrollment, decision: ReviewDecision) => {
     if (!profile) return;
     setBusyAction(enr.id);
     setErrorMsg(null);
     try {
       await adminReviewEnrollment({
         enrollment: enr,
-        paymentStatus: decision === 'reject' ? 'rejected' : 'verified',
-        enrollmentStatus:
-          decision === 'approve'
-            ? 'approved'
-            : decision === 'complete'
-            ? 'completed'
-            : 'rejected',
-        reviewNote:
-          reviewNotes[enr.id] ||
-          (decision === 'reject'
-            ? 'Payment verification failed or rejected by admin.'
-            : 'Manual NPR payment verified and enrollment approved.'),
-        actor: profile,
+        decision,
+        reviewNote: reviewNotes[enr.id] || '',
       });
       await loadAdminData();
       setNotice(`Updated enrollment for ${enr.studentName} (${decision}).`);
     } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
+      setErrorMsg(
+        err instanceof ApiError && err.code === 'MFA_REQUIRED'
+          ? 'Enrol an authenticator app at /staff/security and sign in again to approve payments.'
+          : err instanceof ApiError
+          ? err.message
+          : parseFirestoreErrorMessage(err)
+      );
     } finally {
       setBusyAction(null);
     }
@@ -693,30 +687,31 @@ export function AdminDashboard() {
                           className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
                         />
                         <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={busyAction === enr.id}
-                            onClick={() => void handleReviewEnrollment(enr, 'approve')}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-700 text-white hover:bg-emerald-600 disabled:opacity-50"
-                          >
-                            Verify &amp; Approve
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busyAction === enr.id}
-                            onClick={() => void handleReviewEnrollment(enr, 'complete')}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-700 text-white hover:bg-blue-600 disabled:opacity-50"
-                          >
-                            Mark Completed
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busyAction === enr.id}
-                            onClick={() => void handleReviewEnrollment(enr, 'reject')}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-300 dark:border-red-900 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
+                          {allowedDecisions(enr.enrollmentStatus).map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              disabled={busyAction === enr.id}
+                              onClick={() => void handleReviewEnrollment(enr, d)}
+                              className={`px-3 py-1.5 text-xs font-semibold rounded-lg disabled:opacity-50 ${
+                                d === 'reject'
+                                  ? 'border border-red-300 dark:border-red-900 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30'
+                                  : d === 'complete'
+                                  ? 'bg-brand-600 text-white hover:bg-brand-700'
+                                  : d === 'waive'
+                                  ? 'border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  : 'bg-emerald-700 text-white hover:bg-emerald-600'
+                              }`}
+                            >
+                              {d === 'approve'
+                                ? 'Verify payment & approve'
+                                : d === 'waive'
+                                ? 'Approve (scholarship)'
+                                : d === 'complete'
+                                ? 'Mark completed'
+                                : 'Reject'}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>

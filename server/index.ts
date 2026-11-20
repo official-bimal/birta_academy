@@ -6,6 +6,11 @@ import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminApp, adminDb } from './firebaseAdmin.ts';
 import {
+  isReviewDecision,
+  planEnrollmentReview,
+  validateEnrollmentSubmission,
+} from '../src/lib/enrollmentPolicy.ts';
+import {
   decideStudentSignIn,
   validateInstructorInvite,
   type ClaimRole,
@@ -175,6 +180,158 @@ app.post('/api/admin/instructors/:uid/disabled', sensitiveLimiter, requireAuth, 
     res.json({ ok: true });
   } catch {
     res.status(404).json({ error: 'Instructor not found.' });
+  }
+});
+
+
+class HttpError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+const OCCUPYING = ['approved', 'completed'];
+
+/**
+ * Student applies for a batch. Price, instructor, names and course are read from the database,
+ * never trusted from the browser. Idempotent per (student, batch).
+ */
+app.post('/api/enrollments', initLimiter, requireAuth, requireRole('STUDENT'), async (req, res) => {
+  const user = (req as AuthedRequest).user;
+  const parsed = validateEnrollmentSubmission(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  try {
+    const id = await adminDb.runTransaction(async (tx) => {
+      const batchSnap = await tx.get(adminDb.collection('batches').doc(parsed.batchId));
+      if (!batchSnap.exists) throw new HttpError(404, 'Batch not found.');
+      const batch = batchSnap.data() as Record<string, any>;
+      if (!['upcoming', 'ongoing'].includes(batch.status)) throw new HttpError(409, 'This batch is not open for enrollment.');
+      const courseSnap = await tx.get(adminDb.collection('courses').doc(String(batch.courseId)));
+      if (!courseSnap.exists || courseSnap.data()?.published !== true) throw new HttpError(404, 'Course not available.');
+      const profileSnap = await tx.get(adminDb.collection('users').doc(user.uid));
+      if (!profileSnap.exists) throw new HttpError(409, 'Complete sign-in first.');
+      const profile = profileSnap.data() as Record<string, any>;
+
+      const enrollmentId = `${user.uid}_${parsed.batchId}`;
+      const ref = adminDb.collection('enrollments').doc(enrollmentId);
+      const existing = await tx.get(ref);
+
+      if (existing.exists) {
+        const prev = existing.data() as Record<string, any>;
+        if (OCCUPYING.includes(prev.enrollmentStatus)) throw new HttpError(409, 'You are already enrolled in this batch.');
+        // pending (update reference) or rejected (reapply): back to pending verification
+        tx.update(ref, {
+          paymentMethod: parsed.paymentMethod,
+          paymentReference: parsed.paymentReference,
+          paymentNotes: parsed.paymentNotes,
+          paymentStatus: 'pending_verification',
+          enrollmentStatus: 'pending',
+          reviewedBy: FieldValue.delete(),
+          reviewNote: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        return enrollmentId;
+      }
+
+      const occupied = await tx.get(
+        adminDb.collection('enrollments').where('batchId', '==', parsed.batchId).where('enrollmentStatus', 'in', OCCUPYING)
+      );
+      if (occupied.size >= Number(batch.seatLimit)) throw new HttpError(409, 'This batch is full.');
+
+      tx.create(ref, {
+        id: enrollmentId,
+        studentId: user.uid,
+        studentName: String(profile.displayName).slice(0, 100),
+        studentEmail: String(profile.email).slice(0, 200),
+        courseId: batch.courseId,
+        courseTitle: batch.courseTitle,
+        batchId: parsed.batchId,
+        batchName: batch.name,
+        instructorId: batch.instructorId,
+        amountNpr: batch.priceNpr,
+        currency: 'NPR',
+        paymentMethod: parsed.paymentMethod,
+        paymentReference: parsed.paymentReference,
+        paymentNotes: parsed.paymentNotes,
+        paymentStatus: 'pending_verification',
+        enrollmentStatus: 'pending',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return enrollmentId;
+    });
+    res.status(201).json({ id });
+  } catch (error) {
+    if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
+    console.error('enrollment failed', error);
+    res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+});
+
+/**
+ * Super Admin verifies payment / waives / rejects / completes. Runs in a transaction so concurrent
+ * approvals cannot exceed the batch's seat limit, and repeated clicks are idempotent.
+ */
+app.post('/api/admin/enrollments/:id/review', sensitiveLimiter, requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+  const actor = (req as AuthedRequest).user;
+  const body = (req.body ?? {}) as { decision?: unknown; note?: unknown };
+  if (!isReviewDecision(body.decision)) return res.status(400).json({ error: 'Invalid decision.' });
+  const decision = body.decision;
+  const note = typeof body.note === 'string' ? body.note.trim().slice(0, 400) : '';
+  const enrollmentId = String(req.params.id);
+  if (!/^[a-zA-Z0-9_-]{1,260}$/.test(enrollmentId)) return res.status(400).json({ error: 'Invalid enrollment.' });
+  try {
+    const outcome = await adminDb.runTransaction(async (tx) => {
+      const ref = adminDb.collection('enrollments').doc(enrollmentId);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new HttpError(404, 'Enrollment not found.');
+      const enr = snap.data() as Record<string, any>;
+      const batchSnap = await tx.get(adminDb.collection('batches').doc(String(enr.batchId)));
+      const seatLimit = Number(batchSnap.data()?.seatLimit ?? 0);
+      const occupiedSnap = await tx.get(
+        adminDb.collection('enrollments').where('batchId', '==', enr.batchId).where('enrollmentStatus', 'in', OCCUPYING)
+      );
+      const occupiedSeats = occupiedSnap.docs.filter((d) => d.id !== enrollmentId).length;
+
+      const plan = planEnrollmentReview({
+        enrollmentStatus: enr.enrollmentStatus,
+        paymentStatus: enr.paymentStatus,
+        decision,
+        occupiedSeats,
+        seatLimit,
+      });
+      if (plan.kind === 'error') {
+        throw new HttpError(409, plan.code === 'BATCH_FULL' ? 'This batch is full.' : 'That action is not valid for this enrollment.');
+      }
+      if (plan.kind === 'noop') return { changed: false, enr };
+
+      const granted = plan.paymentStatus === 'verified' || plan.paymentStatus === 'waived';
+      tx.update(ref, {
+        paymentStatus: plan.paymentStatus,
+        enrollmentStatus: plan.enrollmentStatus,
+        reviewedBy: actor.uid,
+        reviewNote: note || (decision === 'reject' ? 'Rejected by admin.' : decision === 'waive' ? 'Scholarship / waived.' : 'Payment verified by admin.'),
+        ...(granted && enr.enrollmentStatus === 'pending' ? { verifiedAt: FieldValue.serverTimestamp(), verifiedBy: actor.uid } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return { changed: true, enr, plan };
+    });
+    if (outcome.changed) {
+      await adminDb.collection('auditLogs').add({
+        actorId: actor.uid,
+        actorEmail: actor.email ?? '',
+        action: 'REVIEW_ENROLLMENT',
+        targetCollection: 'enrollments',
+        targetId: enrollmentId,
+        summary: `${decision} ${outcome.enr.studentEmail} (${outcome.enr.batchName})`,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    res.json({ ok: true, changed: outcome.changed });
+  } catch (error) {
+    if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
+    console.error('review failed', error);
+    res.status(500).json({ error: 'SERVER_ERROR' });
   }
 });
 

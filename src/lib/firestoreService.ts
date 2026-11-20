@@ -11,6 +11,8 @@ import {
   where,
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
+import { apiFetch } from './api';
+import type { ReviewDecision } from './enrollmentPolicy';
 import {
   db,
   handleFirestoreError,
@@ -604,6 +606,7 @@ export async function deleteBatch(id: string, name: string, actor: UserProfile):
 // ---------------------------------------------------------------------------
 // Enrollments & Manual NPR Payment Verification
 // ---------------------------------------------------------------------------
+/** Enrollment is created by the trusted server, which reads price/instructor from the batch. */
 export async function submitEnrollmentApplication(params: {
   student: UserProfile;
   course: Course;
@@ -612,57 +615,16 @@ export async function submitEnrollmentApplication(params: {
   paymentReference: string;
   paymentNotes?: string;
 }): Promise<string> {
-  const id = `${params.student.uid}_${params.batch.id}`;
-  const path = `enrollments/${id}`;
-  try {
-    const existingSnap = await getDoc(doc(db, 'enrollments', id));
-    if (existingSnap.exists()) {
-      const prev = existingSnap.data() as Enrollment;
-      if (prev.enrollmentStatus === 'pending' && prev.paymentStatus === 'pending_verification') {
-        await updateDoc(
-          doc(db, 'enrollments', id),
-          stripUndefined({
-            paymentMethod: params.paymentMethod,
-            paymentReference: clampString(params.paymentReference, LIMITS.PAYMENT_REF_MAX),
-            paymentNotes: clampString(params.paymentNotes, LIMITS.NOTES_MAX),
-            updatedAt: serverTimestamp(),
-          })
-        );
-        return id;
-      }
-      throw new Error(`You already have a ${prev.enrollmentStatus} enrollment for this batch.`);
-    }
-
-    await setDoc(
-      doc(db, 'enrollments', id),
-      stripUndefined({
-        id,
-        studentId: params.student.uid,
-        studentName: clampString(params.student.displayName, LIMITS.NAME_MAX),
-        studentEmail: clampString(params.student.email, LIMITS.EMAIL_MAX),
-        courseId: params.course.id,
-        courseTitle: clampString(params.course.title, LIMITS.TITLE_MAX),
-        batchId: params.batch.id,
-        batchName: clampString(params.batch.name, 120),
-        instructorId: params.batch.instructorId,
-        amountNpr: params.batch.priceNpr,
-        currency: 'NPR',
-        paymentMethod: params.paymentMethod,
-        paymentReference: clampString(params.paymentReference, LIMITS.PAYMENT_REF_MAX),
-        paymentNotes: clampString(params.paymentNotes, LIMITS.NOTES_MAX),
-        paymentStatus: 'pending_verification',
-        enrollmentStatus: 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-    );
-    return id;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('already have')) {
-      throw error;
-    }
-    handleFirestoreError(error, OperationType.CREATE, path);
-  }
+  const res = await apiFetch<{ id: string }>('/enrollments', {
+    method: 'POST',
+    body: {
+      batchId: params.batch.id,
+      paymentMethod: params.paymentMethod,
+      paymentReference: params.paymentReference,
+      paymentNotes: params.paymentNotes ?? '',
+    },
+  });
+  return res.id;
 }
 
 export async function listStudentEnrollments(studentId: string): Promise<Enrollment[]> {
@@ -701,31 +663,13 @@ export async function listAllEnrollments(): Promise<Enrollment[]> {
 
 export async function adminReviewEnrollment(params: {
   enrollment: Enrollment;
-  paymentStatus: PaymentStatus;
-  enrollmentStatus: EnrollmentStatus;
+  decision: ReviewDecision;
   reviewNote: string;
-  actor: UserProfile;
 }): Promise<void> {
-  const path = `enrollments/${params.enrollment.id}`;
-  try {
-    await updateDoc(doc(db, 'enrollments', params.enrollment.id), {
-      paymentStatus: params.paymentStatus,
-      enrollmentStatus: params.enrollmentStatus,
-      reviewedBy: params.actor.uid,
-      reviewNote: clampString(params.reviewNote || 'Reviewed by Academy Admin', 400),
-      updatedAt: serverTimestamp(),
-    });
-    await writeAuditLog({
-      actorId: params.actor.uid,
-      actorEmail: params.actor.email,
-      action: 'REVIEW_ENROLLMENT',
-      targetCollection: 'enrollments',
-      targetId: params.enrollment.id,
-      summary: `Set ${params.enrollment.studentEmail} (${params.enrollment.batchName}) -> payment: ${params.paymentStatus}, enrollment: ${params.enrollmentStatus}`,
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
-  }
+  await apiFetch(`/admin/enrollments/${encodeURIComponent(params.enrollment.id)}/review`, {
+    method: 'POST',
+    body: { decision: params.decision, note: params.reviewNote },
+  });
 }
 
 // ---------------------------------------------------------------------------

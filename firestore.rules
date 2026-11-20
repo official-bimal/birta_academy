@@ -651,44 +651,9 @@ service cloud.firestore {
         resource.data.instructorId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isVerified()
-        && isValidId(enrollmentId)
-        && isValidEnrollment(incoming())
-        && incoming().id == enrollmentId
-        && enrollmentId == incoming().studentId + '_' + incoming().batchId
-        && incoming().studentId == request.auth.uid
-        && incoming().paymentStatus == 'pending_verification'
-        && incoming().enrollmentStatus == 'pending'
-        && !('reviewedBy' in incoming())
-        && !('reviewNote' in incoming())
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
-        && exists(/databases/$(database)/documents/courses/$(incoming().courseId))
-        && exists(/databases/$(database)/documents/batches/$(incoming().batchId));
-      allow update: if isVerified()
-        && isValidId(enrollmentId)
-        && isValidEnrollment(incoming())
-        && incoming().id == existing().id
-        && incoming().studentId == existing().studentId
-        && incoming().courseId == existing().courseId
-        && incoming().batchId == existing().batchId
-        && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
-        && (
-          // Tier 1: Admin verifies manual payment / approves / rejects / completes enrollment
-          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
-            'paymentStatus', 'enrollmentStatus', 'reviewedBy', 'reviewNote', 'updatedAt'
-          ])) ||
-          // Tier 2: Student can update payment reference ONLY while still pending
-          (existing().studentId == request.auth.uid
-            && existing().enrollmentStatus == 'pending'
-            && existing().paymentStatus == 'pending_verification'
-            && incoming().enrollmentStatus == 'pending'
-            && incoming().paymentStatus == 'pending_verification'
-            && incoming().diff(existing()).affectedKeys().hasOnly([
-              'paymentMethod', 'paymentReference', 'paymentNotes', 'updatedAt'
-            ]))
-        );
+      // Enrollments (price, instructor, approval, capacity) are written only by the trusted server
+      // inside transactions. Clients can read their own records but never write them.
+      allow create, update: if false;
       allow delete: if false;
     }
 
