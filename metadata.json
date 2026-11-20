@@ -1,0 +1,6 @@
+{
+  "name": "Birta Academy",
+  "description": "Birta Academy — Nepal-based online skill training academy offering instructor-led live classes, practical assignments, recorded materials, and completion certificates. Learn Skills. Build Your Future.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

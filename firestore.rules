@@ -1,0 +1,870 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Global Safety Net (Default Deny)
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 3: Global Primitives & RBAC Helpers
+    // -------------------------------------------------------------------------
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSlug(slug) {
+      return slug is string && slug.size() >= 2 && slug.size() <= 100 && slug.matches('^[a-z0-9\\-]+$');
+    }
+
+    function isNonEmptyString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'official.bimalb@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isApprovedEnrolledInBatch(batchId) {
+      return isVerified()
+        && exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + batchId))
+        && get(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + batchId)).data.enrollmentStatus in ['approved', 'completed'];
+    }
+
+    function isBatchInstructor(batchId) {
+      return isVerified()
+        && exists(/databases/$(database)/documents/batches/$(batchId))
+        && get(/databases/$(database)/documents/batches/$(batchId)).data.instructorId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 2: Validation Blueprints (Anti-Update-Gap)
+    // -------------------------------------------------------------------------
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'phone', 'city', 'bio', 'role', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && isNonEmptyString(data.displayName, 1, 100)
+        && isNonEmptyString(data.email, 3, 200)
+        && isOptionalString(data, 'phone', 30)
+        && isOptionalString(data, 'city', 80)
+        && isOptionalString(data, 'bio', 500)
+        && data.role in ['student', 'instructor', 'admin']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedBy', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedBy', 'createdAt'])
+        && isValidId(data.uid)
+        && isNonEmptyString(data.email, 3, 200)
+        && isNonEmptyString(data.grantedBy, 1, 128)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'slug', 'name', 'description', 'sortOrder', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'slug', 'name', 'description', 'sortOrder', 'active', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidSlug(data.slug)
+        && isNonEmptyString(data.name, 2, 80)
+        && isNonEmptyString(data.description, 5, 300)
+        && data.sortOrder is number && data.sortOrder >= 0 && data.sortOrder <= 1000
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidInstructor(data) {
+      return data.keys().hasAll(['id', 'displayName', 'specialty', 'bio', 'active', 'isDemo', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'displayName', 'specialty', 'bio', 'credentialsNote', 'active', 'isDemo', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isOptionalString(data, 'userId', 128)
+        && isNonEmptyString(data.displayName, 2, 100)
+        && isNonEmptyString(data.specialty, 2, 120)
+        && isNonEmptyString(data.bio, 10, 800)
+        && isOptionalString(data, 'credentialsNote', 200)
+        && data.active is bool
+        && data.isDemo is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCourse(data) {
+      return data.keys().hasAll([
+          'id', 'slug', 'title', 'subtitle', 'categoryId', 'categoryName',
+          'instructorId', 'instructorName', 'level', 'durationWeeks', 'priceNpr',
+          'currency', 'description', 'outcomes', 'syllabus', 'published',
+          'featured', 'isDemo', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'slug', 'title', 'subtitle', 'categoryId', 'categoryName',
+          'instructorId', 'instructorName', 'level', 'durationWeeks', 'priceNpr',
+          'currency', 'thumbnailUrl', 'description', 'outcomes', 'syllabus',
+          'published', 'featured', 'isDemo', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidSlug(data.slug)
+        && isNonEmptyString(data.title, 3, 140)
+        && isNonEmptyString(data.subtitle, 5, 220)
+        && isValidId(data.categoryId)
+        && isNonEmptyString(data.categoryName, 2, 80)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.instructorName, 2, 100)
+        && data.level in ['Beginner', 'Intermediate', 'Advanced']
+        && data.durationWeeks is number && data.durationWeeks >= 1 && data.durationWeeks <= 52
+        && data.priceNpr is number && data.priceNpr >= 0 && data.priceNpr <= 500000
+        && data.currency == 'NPR'
+        && isOptionalString(data, 'thumbnailUrl', 300)
+        && isNonEmptyString(data.description, 10, 2000)
+        && data.outcomes is list && data.outcomes.size() >= 1 && data.outcomes.size() <= 10 && data.outcomes[0] is string && data.outcomes[0].size() <= 200
+        && data.syllabus is list && data.syllabus.size() >= 1 && data.syllabus.size() <= 15 && data.syllabus[0] is string && data.syllabus[0].size() <= 200
+        && data.published is bool
+        && data.featured is bool
+        && data.isDemo is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBatch(data) {
+      return data.keys().hasAll([
+          'id', 'courseId', 'courseTitle', 'courseSlug', 'instructorId',
+          'instructorName', 'name', 'startDate', 'endDate', 'scheduleText',
+          'timezone', 'seatLimit', 'priceNpr', 'status', 'isDemo', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'courseId', 'courseTitle', 'courseSlug', 'instructorId',
+          'instructorName', 'name', 'startDate', 'endDate', 'scheduleText',
+          'timezone', 'seatLimit', 'priceNpr', 'status', 'isDemo', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.courseId)
+        && isNonEmptyString(data.courseTitle, 3, 140)
+        && isValidSlug(data.courseSlug)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.instructorName, 2, 100)
+        && isNonEmptyString(data.name, 3, 120)
+        && isNonEmptyString(data.startDate, 8, 30)
+        && isNonEmptyString(data.endDate, 8, 30)
+        && isNonEmptyString(data.scheduleText, 3, 120)
+        && isNonEmptyString(data.timezone, 3, 40)
+        && data.seatLimit is number && data.seatLimit >= 1 && data.seatLimit <= 500
+        && data.priceNpr is number && data.priceNpr >= 0 && data.priceNpr <= 500000
+        && data.status in ['upcoming', 'ongoing', 'completed']
+        && data.isDemo is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEnrollment(data) {
+      return data.keys().hasAll([
+          'id', 'studentId', 'studentName', 'studentEmail', 'courseId',
+          'courseTitle', 'batchId', 'batchName', 'instructorId', 'amountNpr',
+          'currency', 'paymentMethod', 'paymentReference', 'paymentStatus',
+          'enrollmentStatus', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'studentId', 'studentName', 'studentEmail', 'courseId',
+          'courseTitle', 'batchId', 'batchName', 'instructorId', 'amountNpr',
+          'currency', 'paymentMethod', 'paymentReference', 'paymentNotes',
+          'paymentStatus', 'enrollmentStatus', 'reviewedBy', 'reviewNote',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.studentId)
+        && isNonEmptyString(data.studentName, 1, 100)
+        && isNonEmptyString(data.studentEmail, 3, 200)
+        && isValidId(data.courseId)
+        && isNonEmptyString(data.courseTitle, 3, 140)
+        && isValidId(data.batchId)
+        && isNonEmptyString(data.batchName, 3, 120)
+        && isValidId(data.instructorId)
+        && data.amountNpr is number && data.amountNpr >= 0 && data.amountNpr <= 500000
+        && data.currency == 'NPR'
+        && data.paymentMethod in ['bank_transfer', 'esewa_manual', 'khalti_manual']
+        && isNonEmptyString(data.paymentReference, 3, 120)
+        && isOptionalString(data, 'paymentNotes', 500)
+        && data.paymentStatus in ['pending_verification', 'verified', 'rejected']
+        && data.enrollmentStatus in ['pending', 'approved', 'rejected', 'completed']
+        && isOptionalString(data, 'reviewedBy', 128)
+        && isOptionalString(data, 'reviewNote', 400)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLesson(data) {
+      return data.keys().hasAll([
+          'id', 'courseId', 'batchId', 'instructorId', 'title', 'moduleTitle',
+          'orderIndex', 'contentSummary', 'durationMinutes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'courseId', 'batchId', 'instructorId', 'title', 'moduleTitle',
+          'orderIndex', 'contentSummary', 'videoUrl', 'resourceUrl',
+          'durationMinutes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.courseId)
+        && isValidId(data.batchId)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.title, 3, 140)
+        && isNonEmptyString(data.moduleTitle, 2, 100)
+        && data.orderIndex is number && data.orderIndex >= 0 && data.orderIndex <= 500
+        && isNonEmptyString(data.contentSummary, 5, 1500)
+        && isOptionalString(data, 'videoUrl', 400)
+        && isOptionalString(data, 'resourceUrl', 400)
+        && data.durationMinutes is number && data.durationMinutes >= 1 && data.durationMinutes <= 600
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLiveSession(data) {
+      return data.keys().hasAll([
+          'id', 'courseId', 'batchId', 'instructorId', 'title', 'scheduledStart',
+          'durationMinutes', 'meetingPlatform', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'courseId', 'batchId', 'instructorId', 'title', 'scheduledStart',
+          'durationMinutes', 'meetingPlatform', 'meetingUrl', 'status', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.courseId)
+        && isValidId(data.batchId)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.title, 3, 140)
+        && isNonEmptyString(data.scheduledStart, 8, 40)
+        && data.durationMinutes is number && data.durationMinutes >= 10 && data.durationMinutes <= 480
+        && isNonEmptyString(data.meetingPlatform, 2, 40)
+        && isOptionalString(data, 'meetingUrl', 400)
+        && data.status in ['scheduled', 'live', 'completed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAssignment(data) {
+      return data.keys().hasAll([
+          'id', 'courseId', 'batchId', 'instructorId', 'title', 'instructions',
+          'dueDate', 'maxScore', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'courseId', 'batchId', 'instructorId', 'title', 'instructions',
+          'dueDate', 'maxScore', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.courseId)
+        && isValidId(data.batchId)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.title, 3, 140)
+        && isNonEmptyString(data.instructions, 5, 2000)
+        && isNonEmptyString(data.dueDate, 8, 40)
+        && data.maxScore is number && data.maxScore >= 1 && data.maxScore <= 1000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll([
+          'id', 'assignmentId', 'courseId', 'batchId', 'studentId', 'studentName',
+          'instructorId', 'submissionUrl', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'assignmentId', 'courseId', 'batchId', 'studentId', 'studentName',
+          'instructorId', 'submissionUrl', 'notes', 'status', 'score', 'feedback',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.assignmentId)
+        && isValidId(data.courseId)
+        && isValidId(data.batchId)
+        && isValidId(data.studentId)
+        && isNonEmptyString(data.studentName, 1, 100)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.submissionUrl, 5, 400)
+        && isOptionalString(data, 'notes', 1000)
+        && data.status in ['submitted', 'graded', 'needs_revision']
+        && (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 1000))
+        && isOptionalString(data, 'feedback', 1000)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLessonProgress(data) {
+      return data.keys().hasAll(['id', 'studentId', 'courseId', 'batchId', 'lessonId', 'completed', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'studentId', 'courseId', 'batchId', 'lessonId', 'completed', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.studentId)
+        && isValidId(data.courseId)
+        && isValidId(data.batchId)
+        && isValidId(data.lessonId)
+        && data.completed is bool
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCertificate(data) {
+      return data.keys().hasAll([
+          'id', 'certificateCode', 'studentId', 'studentName', 'courseId',
+          'courseTitle', 'batchId', 'batchName', 'issuedBy', 'status', 'issuedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'certificateCode', 'studentId', 'studentName', 'courseId',
+          'courseTitle', 'batchId', 'batchName', 'issuedBy', 'status', 'issuedAt'
+        ])
+        && isValidId(data.id)
+        && data.certificateCode is string && data.certificateCode.size() >= 6 && data.certificateCode.size() <= 40 && data.certificateCode.matches('^[A-Z0-9\\-]+$')
+        && isValidId(data.studentId)
+        && isNonEmptyString(data.studentName, 1, 100)
+        && isValidId(data.courseId)
+        && isNonEmptyString(data.courseTitle, 3, 140)
+        && isValidId(data.batchId)
+        && isNonEmptyString(data.batchName, 3, 120)
+        && isNonEmptyString(data.issuedBy, 1, 128)
+        && data.status in ['issued', 'revoked']
+        && data.issuedAt is timestamp;
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['id', 'courseId', 'batchId', 'instructorId', 'authorName', 'title', 'body', 'createdAt'])
+        && data.keys().hasOnly(['id', 'courseId', 'batchId', 'instructorId', 'authorName', 'title', 'body', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.courseId)
+        && isValidId(data.batchId)
+        && isValidId(data.instructorId)
+        && isNonEmptyString(data.authorName, 1, 100)
+        && isNonEmptyString(data.title, 3, 140)
+        && isNonEmptyString(data.body, 5, 1500)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidInquiry(data) {
+      return data.keys().hasAll(['id', 'userId', 'fullName', 'email', 'courseInterest', 'message', 'status', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'fullName', 'email', 'phone', 'courseInterest', 'message', 'status', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.fullName, 2, 100)
+        && isNonEmptyString(data.email, 3, 200)
+        && isOptionalString(data, 'phone', 30)
+        && isNonEmptyString(data.courseInterest, 2, 140)
+        && isNonEmptyString(data.message, 10, 1500)
+        && data.status in ['new', 'responded', 'closed']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'actorId', 'actorEmail', 'action', 'targetCollection', 'targetId', 'summary', 'createdAt'])
+        && data.keys().hasOnly(['id', 'actorId', 'actorEmail', 'action', 'targetCollection', 'targetId', 'summary', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.actorId)
+        && isNonEmptyString(data.actorEmail, 3, 200)
+        && isNonEmptyString(data.action, 3, 80)
+        && isNonEmptyString(data.targetCollection, 2, 60)
+        && isNonEmptyString(data.targetId, 1, 128)
+        && isNonEmptyString(data.summary, 3, 400)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAcademySettings(data) {
+      return data.keys().hasAll(['academyName', 'supportEmail', 'bankName', 'bankAccountName', 'bankAccountNumber', 'updatedAt'])
+        && data.keys().hasOnly(['academyName', 'supportEmail', 'supportPhone', 'location', 'bankName', 'bankAccountName', 'bankAccountNumber', 'esewaInstructions', 'khaltiInstructions', 'updatedAt'])
+        && isNonEmptyString(data.academyName, 2, 100)
+        && isNonEmptyString(data.supportEmail, 3, 200)
+        && isOptionalString(data, 'supportPhone', 40)
+        && isOptionalString(data, 'location', 140)
+        && isNonEmptyString(data.bankName, 2, 120)
+        && isNonEmptyString(data.bankAccountName, 2, 120)
+        && isNonEmptyString(data.bankAccountNumber, 2, 60)
+        && isOptionalString(data, 'esewaInstructions', 300)
+        && isOptionalString(data, 'khaltiInstructions', 300)
+        && data.updatedAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    // 1. Users (PII isolated to owner & admin; self-role escalation blocked)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId) && incoming().role == 'student') ||
+          isAdmin()
+        );
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'city', 'bio', 'updatedAt'])) ||
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'city', 'bio', 'role', 'updatedAt']))
+        );
+      allow delete: if false;
+    }
+
+    // 2. Admins RBAC Lookup
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        && isValidId(userId)
+        && isValidAdminRecord(incoming())
+        && incoming().uid == userId
+        && incoming().grantedBy == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(userId) && userId != request.auth.uid;
+    }
+
+    // 3. Categories (Public Catalog Read, Admin Write)
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId) && (existing().active == true || isAdmin());
+      allow list: if resource.data.active == true || isAdmin();
+      allow create: if isAdmin()
+        && isValidId(categoryId)
+        && isValidCategory(incoming())
+        && incoming().id == categoryId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(categoryId)
+        && isValidCategory(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['slug', 'name', 'description', 'sortOrder', 'active', 'updatedAt']);
+      allow delete: if isAdmin() && isValidId(categoryId);
+    }
+
+    // 4. Instructors (Public Profile Directory, NO PII)
+    match /instructors/{instructorId} {
+      allow get: if isValidId(instructorId) && (existing().active == true || isAdmin());
+      allow list: if resource.data.active == true || isAdmin();
+      allow create: if isAdmin()
+        && isValidId(instructorId)
+        && isValidInstructor(incoming())
+        && incoming().id == instructorId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(instructorId)
+        && isValidInstructor(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['userId', 'displayName', 'specialty', 'bio', 'credentialsNote', 'active', 'isDemo', 'updatedAt'])) ||
+          (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'specialty', 'bio', 'credentialsNote', 'updatedAt']))
+        );
+      allow delete: if isAdmin() && isValidId(instructorId);
+    }
+
+    // 5. Courses (Published Public Read, Admin CRUD)
+    match /courses/{courseId} {
+      allow get: if isValidId(courseId) && (existing().published == true || isAdmin() || (isSignedIn() && existing().instructorId == request.auth.uid));
+      allow list: if resource.data.published == true || isAdmin() || (isSignedIn() && resource.data.instructorId == request.auth.uid);
+      allow create: if isAdmin()
+        && isValidId(courseId)
+        && isValidCourse(incoming())
+        && incoming().id == courseId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(courseId)
+        && isValidCourse(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'slug', 'title', 'subtitle', 'categoryId', 'categoryName',
+          'instructorId', 'instructorName', 'level', 'durationWeeks', 'priceNpr',
+          'thumbnailUrl', 'description', 'outcomes', 'syllabus', 'published',
+          'featured', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(courseId);
+    }
+
+    // 6. Batches (Public Cohort Schedule, Admin CRUD) + Gated Subcollections
+    match /batches/{batchId} {
+      allow get: if isValidId(batchId) && (existing().status in ['upcoming', 'ongoing', 'completed'] || isAdmin());
+      allow list: if resource.data.status in ['upcoming', 'ongoing', 'completed'] || isAdmin();
+      allow create: if isAdmin()
+        && isValidId(batchId)
+        && isValidBatch(incoming())
+        && incoming().id == batchId
+        && exists(/databases/$(database)/documents/courses/$(incoming().courseId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(batchId)
+        && isValidBatch(incoming())
+        && incoming().id == existing().id
+        && incoming().courseId == existing().courseId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'courseTitle', 'courseSlug', 'instructorId', 'instructorName',
+          'name', 'startDate', 'endDate', 'scheduleText', 'timezone',
+          'seatLimit', 'priceNpr', 'status', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(batchId);
+
+      // 6a. Lessons (Master Gate: Admin, Assigned Instructor, or Approved Enrolled Student)
+      match /lessons/{lessonId} {
+        allow get: if isValidId(batchId) && isValidId(lessonId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow list: if isValidId(batchId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow create: if isVerified()
+          && isValidId(batchId) && isValidId(lessonId)
+          && isValidLesson(incoming())
+          && incoming().id == lessonId
+          && incoming().batchId == batchId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId));
+        allow update: if isVerified()
+          && isValidId(batchId) && isValidId(lessonId)
+          && isValidLesson(incoming())
+          && incoming().id == existing().id
+          && incoming().batchId == existing().batchId
+          && incoming().courseId == existing().courseId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId))
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'moduleTitle', 'orderIndex', 'contentSummary',
+            'videoUrl', 'resourceUrl', 'durationMinutes', 'updatedAt'
+          ]);
+        allow delete: if isValidId(batchId) && isValidId(lessonId) && (isAdmin() || isBatchInstructor(batchId));
+      }
+
+      // 6b. Live Sessions (Master Gate: Admin, Assigned Instructor, or Approved Enrolled Student)
+      match /liveSessions/{sessionId} {
+        allow get: if isValidId(batchId) && isValidId(sessionId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow list: if isValidId(batchId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow create: if isVerified()
+          && isValidId(batchId) && isValidId(sessionId)
+          && isValidLiveSession(incoming())
+          && incoming().id == sessionId
+          && incoming().batchId == batchId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId));
+        allow update: if isVerified()
+          && isValidId(batchId) && isValidId(sessionId)
+          && isValidLiveSession(incoming())
+          && incoming().id == existing().id
+          && incoming().batchId == existing().batchId
+          && incoming().courseId == existing().courseId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId))
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'scheduledStart', 'durationMinutes', 'meetingPlatform',
+            'meetingUrl', 'status', 'updatedAt'
+          ]);
+        allow delete: if isValidId(batchId) && isValidId(sessionId) && (isAdmin() || isBatchInstructor(batchId));
+      }
+
+      // 6c. Assignments (Master Gate)
+      match /assignments/{assignmentId} {
+        allow get: if isValidId(batchId) && isValidId(assignmentId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow list: if isValidId(batchId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow create: if isVerified()
+          && isValidId(batchId) && isValidId(assignmentId)
+          && isValidAssignment(incoming())
+          && incoming().id == assignmentId
+          && incoming().batchId == batchId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId));
+        allow update: if isVerified()
+          && isValidId(batchId) && isValidId(assignmentId)
+          && isValidAssignment(incoming())
+          && incoming().id == existing().id
+          && incoming().batchId == existing().batchId
+          && incoming().courseId == existing().courseId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId))
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'instructions', 'dueDate', 'maxScore', 'updatedAt'
+          ]);
+        allow delete: if isValidId(batchId) && isValidId(assignmentId) && (isAdmin() || isBatchInstructor(batchId));
+      }
+
+      // 6d. Announcements (Master Gate)
+      match /announcements/{announcementId} {
+        allow get: if isValidId(batchId) && isValidId(announcementId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow list: if isValidId(batchId)
+          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+        allow create: if isVerified()
+          && isValidId(batchId) && isValidId(announcementId)
+          && isValidAnnouncement(incoming())
+          && incoming().id == announcementId
+          && incoming().batchId == batchId
+          && incoming().createdAt == request.time
+          && (isAdmin() || isBatchInstructor(batchId));
+        allow update: if false;
+        allow delete: if isValidId(batchId) && isValidId(announcementId) && (isAdmin() || isBatchInstructor(batchId));
+      }
+    }
+
+    // 7. Enrollments & Manual Payment Verification (Strict Anti-Self-Approval)
+    match /enrollments/{enrollmentId} {
+      allow get: if isValidId(enrollmentId) && isSignedIn() && (
+        existing().studentId == request.auth.uid ||
+        existing().instructorId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        resource.data.instructorId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isVerified()
+        && isValidId(enrollmentId)
+        && isValidEnrollment(incoming())
+        && incoming().id == enrollmentId
+        && enrollmentId == incoming().studentId + '_' + incoming().batchId
+        && incoming().studentId == request.auth.uid
+        && incoming().paymentStatus == 'pending_verification'
+        && incoming().enrollmentStatus == 'pending'
+        && !('reviewedBy' in incoming())
+        && !('reviewNote' in incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/courses/$(incoming().courseId))
+        && exists(/databases/$(database)/documents/batches/$(incoming().batchId));
+      allow update: if isVerified()
+        && isValidId(enrollmentId)
+        && isValidEnrollment(incoming())
+        && incoming().id == existing().id
+        && incoming().studentId == existing().studentId
+        && incoming().courseId == existing().courseId
+        && incoming().batchId == existing().batchId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Tier 1: Admin verifies manual payment / approves / rejects / completes enrollment
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'paymentStatus', 'enrollmentStatus', 'reviewedBy', 'reviewNote', 'updatedAt'
+          ])) ||
+          // Tier 2: Student can update payment reference ONLY while still pending
+          (existing().studentId == request.auth.uid
+            && existing().enrollmentStatus == 'pending'
+            && existing().paymentStatus == 'pending_verification'
+            && incoming().enrollmentStatus == 'pending'
+            && incoming().paymentStatus == 'pending_verification'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'paymentMethod', 'paymentReference', 'paymentNotes', 'updatedAt'
+            ]))
+        );
+      allow delete: if false;
+    }
+
+    // 8. Assignment Submissions
+    match /submissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isSignedIn() && (
+        existing().studentId == request.auth.uid ||
+        existing().instructorId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        resource.data.instructorId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isVerified()
+        && isValidId(submissionId)
+        && isValidSubmission(incoming())
+        && incoming().id == submissionId
+        && incoming().studentId == request.auth.uid
+        && incoming().status == 'submitted'
+        && !('score' in incoming())
+        && !('feedback' in incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isApprovedEnrolledInBatch(incoming().batchId);
+      allow update: if isVerified()
+        && isValidId(submissionId)
+        && isValidSubmission(incoming())
+        && incoming().id == existing().id
+        && incoming().studentId == existing().studentId
+        && incoming().assignmentId == existing().assignmentId
+        && incoming().batchId == existing().batchId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Tier 1: Admin or Instructor grades submission
+          ((isAdmin() || existing().instructorId == request.auth.uid)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'score', 'feedback', 'updatedAt'])) ||
+          // Tier 2: Student revises submission only if not yet graded
+          (existing().studentId == request.auth.uid
+            && existing().status != 'graded'
+            && incoming().status == 'submitted'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['submissionUrl', 'notes', 'status', 'updatedAt']))
+        );
+      allow delete: if false;
+    }
+
+    // 9. Lesson Progress (Student self-tracking for approved batches)
+    match /lessonProgress/{progressId} {
+      allow get: if isValidId(progressId) && isSignedIn() && (
+        existing().studentId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || isAdmin()
+      );
+      allow create: if isVerified()
+        && isValidId(progressId)
+        && isValidLessonProgress(incoming())
+        && incoming().id == progressId
+        && progressId == incoming().studentId + '_' + incoming().lessonId
+        && incoming().studentId == request.auth.uid
+        && incoming().updatedAt == request.time
+        && isApprovedEnrolledInBatch(incoming().batchId);
+      allow update: if isVerified()
+        && isValidId(progressId)
+        && isValidLessonProgress(incoming())
+        && incoming().id == existing().id
+        && incoming().studentId == existing().studentId
+        && incoming().batchId == existing().batchId
+        && incoming().lessonId == existing().lessonId
+        && incoming().studentId == request.auth.uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 10. Certificates (Admin Issued; Student & Admin Read)
+    match /certificates/{certificateId} {
+      allow get: if isValidId(certificateId) && isSignedIn() && (
+        existing().studentId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAdmin()
+        && isValidId(certificateId)
+        && isValidCertificate(incoming())
+        && incoming().id == certificateId
+        && incoming().issuedBy == request.auth.uid
+        && incoming().issuedAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(certificateId)
+        && isValidCertificate(incoming())
+        && incoming().id == existing().id
+        && incoming().studentId == existing().studentId
+        && incoming().certificateCode == existing().certificateCode
+        && incoming().issuedAt == existing().issuedAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
+    }
+
+    // 11. Admission Inquiries (PII isolated to owner & admin)
+    match /inquiries/{inquiryId} {
+      allow get: if isValidId(inquiryId) && isSignedIn() && (
+        existing().userId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isVerified()
+        && isValidId(inquiryId)
+        && isValidInquiry(incoming())
+        && incoming().id == inquiryId
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'new'
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(inquiryId)
+        && isValidInquiry(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
+    }
+
+    // 12. Audit Logs (Immutable Append-Only Admin Trail)
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        && isValidId(logId)
+        && isValidAuditLog(incoming())
+        && incoming().id == logId
+        && incoming().actorId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // 13. Academy Settings (Public Payment Instructions & Contact Info, Admin Write)
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if false;
+      allow create: if isAdmin()
+        && isValidId(settingId)
+        && isValidAcademySettings(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(settingId)
+        && isValidAcademySettings(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'academyName', 'supportEmail', 'supportPhone', 'location',
+          'bankName', 'bankAccountName', 'bankAccountNumber',
+          'esewaInstructions', 'khaltiInstructions', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+  }
+}

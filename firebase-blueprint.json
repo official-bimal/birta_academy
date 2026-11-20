@@ -1,0 +1,401 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account profile and RBAC role assignment.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "minLength": 3, "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "city": { "type": "string", "maxLength": 80 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "role": { "type": "string", "enum": ["student", "instructor", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "role", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted academy administrator record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "minLength": 3, "maxLength": 200 },
+        "grantedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "grantedBy", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Course subject category.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 80, "pattern": "^[a-z0-9\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "description": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "sortOrder": { "type": "number" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "slug", "name", "description", "sortOrder", "active", "createdAt", "updatedAt"]
+    },
+    "InstructorProfile": {
+      "title": "InstructorProfile",
+      "description": "Publicly visible instructor profile without private PII.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "specialty": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "bio": { "type": "string", "minLength": 10, "maxLength": 800 },
+        "credentialsNote": { "type": "string", "maxLength": 200 },
+        "active": { "type": "boolean" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "displayName", "specialty", "bio", "active", "isDemo", "createdAt", "updatedAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Academy course catalog record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9\\-]+$" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "subtitle": { "type": "string", "minLength": 5, "maxLength": 220 },
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "categoryName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "instructorName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "level": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "durationWeeks": { "type": "number" },
+        "priceNpr": { "type": "number" },
+        "currency": { "type": "string", "enum": ["NPR"] },
+        "thumbnailUrl": { "type": "string", "maxLength": 300 },
+        "description": { "type": "string", "minLength": 10, "maxLength": 2000 },
+        "outcomes": { "type": "array" },
+        "syllabus": { "type": "array" },
+        "published": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "slug", "title", "subtitle", "categoryId", "categoryName", "instructorId", "instructorName", "level", "durationWeeks", "priceNpr", "currency", "description", "outcomes", "syllabus", "published", "featured", "isDemo", "createdAt", "updatedAt"]
+    },
+    "Batch": {
+      "title": "Batch",
+      "description": "Scheduled instructor-led live cohort for a course.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseTitle": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "courseSlug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9\\-]+$" },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "instructorName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "name": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "startDate": { "type": "string", "minLength": 8, "maxLength": 30 },
+        "endDate": { "type": "string", "minLength": 8, "maxLength": 30 },
+        "scheduleText": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "timezone": { "type": "string", "minLength": 3, "maxLength": 40 },
+        "seatLimit": { "type": "number" },
+        "priceNpr": { "type": "number" },
+        "status": { "type": "string", "enum": ["upcoming", "ongoing", "completed"] },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "courseId", "courseTitle", "courseSlug", "instructorId", "instructorName", "name", "startDate", "endDate", "scheduleText", "timezone", "seatLimit", "priceNpr", "status", "isDemo", "createdAt", "updatedAt"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Student batch enrollment application and manual payment verification record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "studentEmail": { "type": "string", "format": "email", "minLength": 3, "maxLength": 200 },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseTitle": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchName": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "amountNpr": { "type": "number" },
+        "currency": { "type": "string", "enum": ["NPR"] },
+        "paymentMethod": { "type": "string", "enum": ["bank_transfer", "esewa_manual", "khalti_manual"] },
+        "paymentReference": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "paymentNotes": { "type": "string", "maxLength": 500 },
+        "paymentStatus": { "type": "string", "enum": ["pending_verification", "verified", "rejected"] },
+        "enrollmentStatus": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "reviewedBy": { "type": "string", "maxLength": 128 },
+        "reviewNote": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "studentId", "studentName", "studentEmail", "courseId", "courseTitle", "batchId", "batchName", "instructorId", "amountNpr", "currency", "paymentMethod", "paymentReference", "paymentStatus", "enrollmentStatus", "createdAt", "updatedAt"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Recorded lesson and downloadable resource scoped to a batch.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "moduleTitle": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "orderIndex": { "type": "number" },
+        "contentSummary": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "videoUrl": { "type": "string", "maxLength": 400 },
+        "resourceUrl": { "type": "string", "maxLength": 400 },
+        "durationMinutes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "courseId", "batchId", "instructorId", "title", "moduleTitle", "orderIndex", "contentSummary", "durationMinutes", "createdAt", "updatedAt"]
+    },
+    "LiveSession": {
+      "title": "LiveSession",
+      "description": "Scheduled instructor-led live session with gated meeting link.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "scheduledStart": { "type": "string", "minLength": 8, "maxLength": 40 },
+        "durationMinutes": { "type": "number" },
+        "meetingPlatform": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "meetingUrl": { "type": "string", "maxLength": 400 },
+        "status": { "type": "string", "enum": ["scheduled", "live", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "courseId", "batchId", "instructorId", "title", "scheduledStart", "durationMinutes", "meetingPlatform", "status", "createdAt", "updatedAt"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Practical coursework assignment scoped to a batch.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "instructions": { "type": "string", "minLength": 5, "maxLength": 2000 },
+        "dueDate": { "type": "string", "minLength": 8, "maxLength": 40 },
+        "maxScore": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "courseId", "batchId", "instructorId", "title", "instructions", "dueDate", "maxScore", "createdAt", "updatedAt"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student assignment submission and instructor review.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "assignmentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "submissionUrl": { "type": "string", "minLength": 5, "maxLength": 400 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["submitted", "graded", "needs_revision"] },
+        "score": { "type": "number" },
+        "feedback": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assignmentId", "courseId", "batchId", "studentId", "studentName", "instructorId", "submissionUrl", "status", "createdAt", "updatedAt"]
+    },
+    "LessonProgress": {
+      "title": "LessonProgress",
+      "description": "Per-student lesson completion tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "lessonId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "completed": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "studentId", "courseId", "batchId", "lessonId", "completed", "updatedAt"]
+    },
+    "Certificate": {
+      "title": "Certificate",
+      "description": "Official completion certificate issued by academy admins.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "certificateCode": { "type": "string", "minLength": 6, "maxLength": 40, "pattern": "^[A-Z0-9\\-]+$" },
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseTitle": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchName": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "issuedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "type": "string", "enum": ["issued", "revoked"] },
+        "issuedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "certificateCode", "studentId", "studentName", "courseId", "courseTitle", "batchId", "batchName", "issuedBy", "status", "issuedAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Batch announcement posted by an instructor or admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "courseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "batchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "instructorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "title": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "body": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "courseId", "batchId", "instructorId", "authorName", "title", "body", "createdAt"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Admission inquiry submitted by a verified user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "minLength": 3, "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "courseInterest": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "message": { "type": "string", "minLength": 10, "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["new", "responded", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "fullName", "email", "courseInterest", "message", "status", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Append-only audit record for sensitive administrative actions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorEmail": { "type": "string", "format": "email", "minLength": 3, "maxLength": 200 },
+        "action": { "type": "string", "minLength": 3, "maxLength": 80 },
+        "targetCollection": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "summary": { "type": "string", "minLength": 3, "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorId", "actorEmail", "action", "targetCollection", "targetId", "summary", "createdAt"]
+    },
+    "AcademySettings": {
+      "title": "AcademySettings",
+      "description": "Publicly readable bank transfer and academy admission settings managed by admins.",
+      "type": "object",
+      "properties": {
+        "academyName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "supportEmail": { "type": "string", "format": "email", "minLength": 3, "maxLength": 200 },
+        "supportPhone": { "type": "string", "maxLength": 40 },
+        "location": { "type": "string", "maxLength": 140 },
+        "bankName": { "type": "string", "maxLength": 120 },
+        "bankAccountName": { "type": "string", "maxLength": 120 },
+        "bankAccountNumber": { "type": "string", "maxLength": 60 },
+        "esewaInstructions": { "type": "string", "maxLength": 300 },
+        "khaltiInstructions": { "type": "string", "maxLength": 300 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["academyName", "supportEmail", "bankName", "bankAccountName", "bankAccountNumber", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user accounts and roles (PII isolated to owner and admins)."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Master RBAC lookup collection for academy administrators."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Publicly browsable course categories."
+    },
+    "/instructors/{instructorId}": {
+      "schema": { "$ref": "#/entities/InstructorProfile" },
+      "description": "Public instructor profiles without PII."
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Course catalog entries."
+    },
+    "/batches/{batchId}": {
+      "schema": { "$ref": "#/entities/Batch" },
+      "description": "Scheduled live cohorts linked to courses."
+    },
+    "/batches/{batchId}/lessons/{lessonId}": {
+      "schema": { "$ref": "#/entities/Lesson" },
+      "description": "Gated recorded lessons and study resources for a batch."
+    },
+    "/batches/{batchId}/liveSessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/LiveSession" },
+      "description": "Gated live class schedule and meeting links for a batch."
+    },
+    "/batches/{batchId}/assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/Assignment" },
+      "description": "Practical coursework assignments for a batch."
+    },
+    "/batches/{batchId}/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Batch announcements from instructors or admins."
+    },
+    "/enrollments/{enrollmentId}": {
+      "schema": { "$ref": "#/entities/Enrollment" },
+      "description": "Student enrollment requests and manual payment verification records (ID: studentId_batchId)."
+    },
+    "/submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/Submission" },
+      "description": "Student assignment submissions and instructor feedback."
+    },
+    "/lessonProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/LessonProgress" },
+      "description": "Per-student lesson completion records (ID: studentId_lessonId)."
+    },
+    "/certificates/{certificateId}": {
+      "schema": { "$ref": "#/entities/Certificate" },
+      "description": "Admin-issued course completion certificates."
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/Inquiry" },
+      "description": "Admission and contact inquiries submitted by verified users."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable append-only audit log of sensitive administrative changes."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AcademySettings" },
+      "description": "Publicly readable payment transfer details and academy configuration."
+    }
+  }
+}
