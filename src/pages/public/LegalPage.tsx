@@ -1,7 +1,7 @@
 import { PublicLayout } from '../../components/PublicLayout';
 
 interface LegalPageProps {
-  type: 'privacy' | 'terms';
+  type: 'privacy' | 'terms' | 'refund';
 }
 
 export function LegalPage({ type }: LegalPageProps) {
@@ -15,14 +15,29 @@ export function LegalPage({ type }: LegalPageProps) {
             Birta Academy Legal
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-            {isPrivacy ? 'Privacy Policy' : 'Terms of Service'}
+            {isPrivacy ? 'Privacy Policy' : type === 'refund' ? 'Refund Policy' : 'Terms of Service'}
           </h1>
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
             Effective Date: November 2026 · Jurisdiction: Nepal
           </p>
         </header>
 
-        {isPrivacy ? (
+        {type === 'refund' ? (
+          <div className="space-y-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+            <section className="space-y-2">
+              <h2 className="font-display text-lg font-semibold text-slate-950 dark:text-white">Draft notice</h2>
+              <p>This page is a draft structure. The academy must confirm the final refund terms (eligibility window, partial refunds, transfers between batches) before launch.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="font-display text-lg font-semibold text-slate-950 dark:text-white">Requests</h2>
+              <p>Refund requests are reviewed individually by Birta Academy administration. Contact admissions with your payment reference and batch name.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="font-display text-lg font-semibold text-slate-950 dark:text-white">Cancelled batches</h2>
+              <p>If a batch is cancelled by the academy, enrolled students may transfer to another batch or request a full refund of tuition paid for that batch.</p>
+            </section>
+          </div>
+        ) : isPrivacy ? (
           <div className="space-y-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
             <section className="space-y-2">
               <h2 className="font-display text-lg font-semibold text-slate-950 dark:text-white">

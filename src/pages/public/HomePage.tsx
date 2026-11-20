@@ -3,11 +3,9 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { PublicLayout } from '../../components/PublicLayout';
 import { CourseCard } from '../../components/CourseCard';
-import { MediaFrame } from '../../components/MediaFrame';
 import { useCatalog } from '../../context/CatalogContext';
 import {
   ACADEMY_FAQS,
-  MEDIA_ASSETS,
 } from '../../data/demoCatalog';
 import { formatDateValue, formatNpr } from '../../lib/validation';
 
@@ -77,6 +75,8 @@ export function HomePage() {
   const displayCourses = featuredCourses.length > 0 ? featuredCourses : courses.slice(0, 4);
   const upcomingBatches = batches.filter((b) => b.status === 'upcoming' || b.status === 'ongoing').slice(0, 4);
 
+  const nextBatch = upcomingBatches[0];
+
   return (
     <PublicLayout>
       {/* 1. Editorial Split Hero */}
@@ -107,7 +107,7 @@ export function HomePage() {
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
                   to="/courses"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500 transition-colors whitespace-nowrap"
                 >
                   <span>Explore Courses</span>
                   <ArrowRight className="w-4 h-4" />
@@ -130,13 +130,47 @@ export function HomePage() {
             </div>
 
             <div className="lg:col-span-6">
-              <div className="h-full min-h-[280px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900">
-                <MediaFrame
-                  src={MEDIA_ASSETS.heroStudio}
-                  alt="Birta Academy digital learning studio overlooking Kathmandu hills at twilight"
-                  title="Birta Academy Studio"
-                  aspectClass="aspect-[16/10] lg:aspect-auto lg:h-full"
-                />
+              <div className="h-full rounded-2xl bg-brand-600 text-white p-7 sm:p-9 flex flex-col justify-between gap-10 min-h-[340px]">
+                <div>
+                  <p className="text-xs font-medium text-white/70">How Birta works</p>
+                  <ul className="mt-5 divide-y divide-white/15">
+                    {[
+                      ['Live', 'Instructor-led classes on Google Meet in Nepal Time'],
+                      ['Recorded', 'Replays and resources for approved students'],
+                      ['Practice', 'Assignments with written instructor feedback'],
+                    ].map(([k, v]) => (
+                      <li key={k} className="py-4 flex items-baseline gap-5">
+                        <span className="font-display text-xl font-bold w-24 shrink-0">{k}</span>
+                        <span className="text-sm text-white/80 leading-relaxed">{v}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-white text-slate-950 p-5">
+                  <p className="text-xs font-medium text-brand-700">
+                    {nextBatch ? 'Next batch' : 'Batches'}
+                  </p>
+                  {nextBatch ? (
+                    <>
+                      <p className="mt-1 font-display text-lg font-semibold">{nextBatch.courseTitle}</p>
+                      <p className="mt-0.5 text-sm text-slate-600">
+                        {nextBatch.name} · starts {formatDateValue(nextBatch.startDate)}
+                        {nextBatch.isDemo ? ' (demo schedule)' : ''}
+                      </p>
+                      <Link
+                        to={`/courses/${nextBatch.courseSlug}?batch=${nextBatch.id}`}
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline"
+                      >
+                        <span>View batch</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-600">
+                      New batches will be announced soon. Contact admissions to be notified.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

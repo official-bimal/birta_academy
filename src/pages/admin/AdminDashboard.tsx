@@ -86,7 +86,7 @@ export function AdminDashboard() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settingsForm, setSettingsForm] = useState<Omit<AcademySettings, 'updatedAt'>>({
     academyName: 'Birta Academy',
-    supportEmail: 'admissions@birtaacademy.edu.np',
+    supportEmail: 'info@birtaacademy.com',
     supportPhone: '',
     location: 'Kathmandu, Nepal',
     bankName: '',

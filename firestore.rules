@@ -808,6 +808,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // 10b. Public certificate verification mirror (no PII beyond name/course; get-only, no listing)
+    match /certificateVerifications/{code} {
+      allow get: if isValidId(code);
+      allow list: if false;
+      allow create, update: if isAdmin()
+        && isValidId(code)
+        && incoming().keys().hasOnly(['certificateCode', 'studentName', 'courseTitle', 'status', 'issuedAt'])
+        && incoming().certificateCode == code
+        && incoming().status in ['issued', 'revoked'];
+      allow delete: if false;
+    }
+
     // 11. Admission Inquiries (PII isolated to owner & admin)
     match /inquiries/{inquiryId} {
       allow get: if isValidId(inquiryId) && isSignedIn() && (

@@ -16,7 +16,7 @@ export const MEDIA_ASSETS = {
 
 export const DEFAULT_ACADEMY_SETTINGS: AcademySettings = {
   academyName: 'Birta Academy',
-  supportEmail: 'admissions@birtaacademy.edu.np',
+  supportEmail: 'info@birtaacademy.com',
   supportPhone: '+977-1-5900000 (Demo Placeholder)',
   location: 'Kathmandu, Nepal — Live Online Cohorts',
   bankName: 'Configure Bank Name in Admin Settings',

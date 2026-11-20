@@ -421,7 +421,7 @@ export function CourseDetailPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 disabled:opacity-50 transition-colors"
+                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500 disabled:opacity-50 transition-colors"
                     >
                       {submitting
                         ? 'Submitting Application...'
@@ -431,7 +431,7 @@ export function CourseDetailPage() {
                     <button
                       type="button"
                       onClick={() => void signInWithGoogle()}
-                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors"
+                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500 transition-colors"
                     >
                       Sign In with Google to Enroll
                     </button>

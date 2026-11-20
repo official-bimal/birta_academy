@@ -111,7 +111,7 @@ export function BatchesPage() {
                   </span>
                   <Link
                     to={`/courses/${batch.courseSlug}?batch=${batch.id}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500 transition-colors"
                   >
                     <span>Enroll in Batch</span>
                     <ArrowRight className="w-3.5 h-3.5" />

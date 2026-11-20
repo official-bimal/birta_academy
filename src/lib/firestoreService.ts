@@ -39,6 +39,7 @@ import type {
   BatchStatus,
   Category,
   Certificate,
+  DateValue,
   Course,
   CourseLevel,
   Enrollment,
@@ -1230,6 +1231,13 @@ export async function adminIssueCertificate(params: {
       status: 'issued',
       issuedAt: serverTimestamp(),
     });
+    await setDoc(doc(db, 'certificateVerifications', code), {
+      certificateCode: code,
+      studentName: clampString(params.enrollment.studentName, LIMITS.NAME_MAX),
+      courseTitle: clampString(params.enrollment.courseTitle, LIMITS.TITLE_MAX),
+      status: 'issued',
+      issuedAt: serverTimestamp(),
+    });
     await writeAuditLog({
       actorId: params.actor.uid,
       actorEmail: params.actor.email,
@@ -1252,6 +1260,9 @@ export async function adminToggleCertificateStatus(params: {
   const path = `certificates/${params.certificate.id}`;
   try {
     await updateDoc(doc(db, 'certificates', params.certificate.id), {
+      status: params.nextStatus,
+    });
+    await updateDoc(doc(db, 'certificateVerifications', params.certificate.certificateCode), {
       status: params.nextStatus,
     });
     await writeAuditLog({
@@ -1466,4 +1477,22 @@ export async function seedSampleCatalog(actor: UserProfile): Promise<void> {
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'courses');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Public certificate verification (reads the minimal mirror document only)
+// ---------------------------------------------------------------------------
+export interface CertificateVerification {
+  certificateCode: string;
+  studentName: string;
+  courseTitle: string;
+  status: 'issued' | 'revoked';
+  issuedAt?: DateValue;
+}
+
+export async function verifyCertificateCode(code: string): Promise<CertificateVerification | null> {
+  const clean = code.trim().toUpperCase();
+  if (!/^[A-Z0-9-]{4,64}$/.test(clean)) return null;
+  const snap = await getDoc(doc(db, 'certificateVerifications', clean));
+  return snap.exists() ? (snap.data() as CertificateVerification) : null;
 }

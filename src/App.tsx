@@ -13,6 +13,7 @@ import { InstructorsPage } from './pages/public/InstructorsPage';
 import { AboutPage } from './pages/public/AboutPage';
 import { ContactPage } from './pages/public/ContactPage';
 import { AuthPage } from './pages/public/AuthPage';
+import { VerifyCertificatePage } from './pages/public/VerifyCertificatePage';
 import { LegalPage } from './pages/public/LegalPage';
 
 import { StudentDashboard } from './pages/student/StudentDashboard';
@@ -40,6 +41,9 @@ export default function App() {
                 <Route path="/register" element={<Navigate to="/login" replace />} />
                 <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/terms" element={<LegalPage type="terms" />} />
+                <Route path="/refund" element={<LegalPage type="refund" />} />
+                <Route path="/verify" element={<VerifyCertificatePage />} />
+                <Route path="/verify/:code" element={<VerifyCertificatePage />} />
 
                 {/* Student Learning Management System */}
                 <Route

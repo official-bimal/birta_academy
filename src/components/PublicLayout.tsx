@@ -83,14 +83,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             {!loading && profile ? (
               <Link
                 to={portalPath}
-                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500 transition-colors whitespace-nowrap shrink-0"
               >
                 {portalLabel}
               </Link>
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500 transition-colors whitespace-nowrap shrink-0"
               >
                 Sign In
               </Link>
@@ -195,6 +195,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <li><Link to="/privacy" className="hover:text-slate-950 dark:hover:text-white transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" className="hover:text-slate-950 dark:hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link to="/refund" className="hover:text-slate-950 dark:hover:text-white transition-colors">Refund Policy</Link></li>
+              <li><Link to="/verify" className="hover:text-slate-950 dark:hover:text-white transition-colors">Verify a Certificate</Link></li>
             </ul>
             <button
               type="button"
@@ -210,6 +212,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <div className="border-t border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
             <p>© {new Date().getFullYear()} Birta Academy. All rights reserved.</p>
+            <p className="sm:order-last">Education only. Forex and trading content is not financial advice and carries no guaranteed results.</p>
             <p>Currency: NPR · Live Cohort Schedule: Nepal Time (UTC+5:45)</p>
           </div>
         </div>
