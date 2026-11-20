@@ -28,7 +28,7 @@ export function AboutPage() {
       <section className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-6 py-14 lg:py-20 grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch">
           <div className="lg:col-span-6 flex flex-col justify-center">
-            <p className="text-sm font-medium text-violet-700 dark:text-violet-400">
+            <p className="text-sm font-medium text-brand-700 dark:text-brand-400">
               About Birta Academy
             </p>
             <h1 className="mt-3 font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-950 dark:text-white leading-tight">
@@ -70,7 +70,7 @@ export function AboutPage() {
                 key={item.index}
                 className="p-7 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
               >
-                <span className="font-mono text-xs font-semibold text-violet-700 dark:text-violet-400">
+                <span className="font-mono text-xs font-semibold text-brand-700 dark:text-brand-400">
                   {item.index}
                 </span>
                 <h3 className="mt-3 font-display text-lg font-semibold text-slate-950 dark:text-white">
@@ -98,7 +98,7 @@ export function AboutPage() {
           <div className="flex items-center gap-3 shrink-0">
             <Link
               to="/courses"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90"
             >
               <span>Explore Courses</span>
               <ArrowRight className="w-4 h-4" />

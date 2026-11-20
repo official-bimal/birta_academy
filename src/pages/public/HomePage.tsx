@@ -7,7 +7,6 @@ import { MediaFrame } from '../../components/MediaFrame';
 import { useCatalog } from '../../context/CatalogContext';
 import {
   ACADEMY_FAQS,
-  DEMO_TESTIMONIALS,
   MEDIA_ASSETS,
 } from '../../data/demoCatalog';
 import { formatDateValue, formatNpr } from '../../lib/validation';
@@ -85,7 +84,7 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-6 py-16 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
             <div className="lg:col-span-6 flex flex-col justify-center">
-              <p className="text-sm font-medium text-violet-700 dark:text-violet-400">
+              <p className="text-sm font-medium text-brand-700 dark:text-brand-400">
                 Kathmandu, Nepal · Live Online Skill Training
               </p>
 
@@ -108,7 +107,7 @@ export function HomePage() {
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
                   to="/courses"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:bg-slate-800 dark:hover:bg-violet-500 transition-colors whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors whitespace-nowrap"
                 >
                   <span>Explore Courses</span>
                   <ArrowRight className="w-4 h-4" />
@@ -149,12 +148,6 @@ export function HomePage() {
                 Showing clearly labeled sample courses, batches, and faculty placeholders until an
                 Academy Admin seeds or publishes live records.
               </p>
-              <Link
-                to="/admin"
-                className="font-medium text-violet-700 dark:text-violet-400 hover:underline whitespace-nowrap shrink-0"
-              >
-                Open Admin Console
-              </Link>
             </div>
           )}
         </div>
@@ -175,7 +168,7 @@ export function HomePage() {
             </div>
             <Link
               to="/courses"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:underline whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:underline whitespace-nowrap shrink-0"
             >
               <span>Browse Full Catalog</span>
               <ArrowRight className="w-4 h-4" />
@@ -189,7 +182,7 @@ export function HomePage() {
                 <Link
                   key={cat.id}
                   to={`/categories/${cat.slug}`}
-                  className="group p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-violet-500/60 dark:hover:border-violet-500/60 transition-colors flex flex-col justify-between"
+                  className="group p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/60 dark:hover:border-brand-500/60 transition-colors flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
@@ -200,14 +193,14 @@ export function HomePage() {
                         {count} {count === 1 ? 'program' : 'programs'}
                       </span>
                     </div>
-                    <h3 className="mt-3 font-display text-lg font-semibold text-slate-950 dark:text-white group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">
+                    <h3 className="mt-3 font-display text-lg font-semibold text-slate-950 dark:text-white group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors">
                       {cat.name}
                     </h3>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                       {cat.description}
                     </p>
                   </div>
-                  <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-violet-700 dark:group-hover:text-violet-400">
+                  <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-brand-700 dark:group-hover:text-brand-400">
                     <span>Explore track</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
@@ -232,7 +225,7 @@ export function HomePage() {
             </div>
             <Link
               to="/courses"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:underline whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:underline whitespace-nowrap shrink-0"
             >
               <span>All Courses</span>
               <ArrowRight className="w-4 h-4" />
@@ -266,7 +259,7 @@ export function HomePage() {
             </div>
             <Link
               to="/batches"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:underline whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:underline whitespace-nowrap shrink-0"
             >
               <span>Full Batch Schedule</span>
               <ArrowRight className="w-4 h-4" />
@@ -313,7 +306,7 @@ export function HomePage() {
                       <td className="py-4 px-5 text-right whitespace-nowrap">
                         <Link
                           to={`/courses/${batch.courseSlug}?batch=${batch.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline"
                         >
                           <span>Apply</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -357,7 +350,7 @@ export function HomePage() {
                 key={item.index}
                 className={`${item.span} p-7 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800`}
               >
-                <p className="font-mono text-xs font-medium text-violet-700 dark:text-violet-400">
+                <p className="font-mono text-xs font-medium text-brand-700 dark:text-brand-400">
                   {item.index}
                 </p>
                 <h3 className="mt-3 font-display text-xl font-semibold text-slate-950 dark:text-white">
@@ -421,7 +414,7 @@ export function HomePage() {
             </div>
             <Link
               to="/instructors"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:underline whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:underline whitespace-nowrap shrink-0"
             >
               <span>All Instructors</span>
               <ArrowRight className="w-4 h-4" />
@@ -435,7 +428,7 @@ export function HomePage() {
                 className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between"
               >
                 <div>
-                  <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
+                  <p className="text-xs font-medium text-brand-700 dark:text-brand-400">
                     {inst.specialty}
                   </p>
                   <h3 className="mt-2 font-display text-base font-semibold text-slate-950 dark:text-white">
@@ -451,47 +444,6 @@ export function HomePage() {
                   </p>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 8. Student Testimonials Section (Explicitly Labeled Demo Placeholders) */}
-      <section className="py-16 lg:py-20 border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="max-w-2xl">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-              Student Stories
-            </h2>
-            <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-400">
-              Birta Academy never publishes fabricated reviews or invented outcomes. The cards below
-              are clearly labeled demo placeholders awaiting verified cohort graduate submissions.
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {DEMO_TESTIMONIALS.map((item) => (
-              <figure
-                key={item.id}
-                className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between"
-              >
-                <div>
-                  <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                    {item.label}
-                  </p>
-                  <blockquote className="mt-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                    “{item.quote}”
-                  </blockquote>
-                </div>
-                <figcaption className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {item.role} · {item.city}
-                  </p>
-                </figcaption>
-              </figure>
             ))}
           </div>
         </div>
@@ -555,7 +507,7 @@ export function HomePage() {
             <div className="flex flex-wrap items-center gap-3 shrink-0">
               <Link
                 to="/courses"
-                className="inline-flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors whitespace-nowrap"
+                className="inline-flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-500 transition-colors whitespace-nowrap"
               >
                 Browse Courses
               </Link>

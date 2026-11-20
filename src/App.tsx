@@ -37,7 +37,7 @@ export default function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/login" element={<AuthPage mode="login" />} />
-                <Route path="/register" element={<AuthPage mode="register" />} />
+                <Route path="/register" element={<Navigate to="/login" replace />} />
                 <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/terms" element={<LegalPage type="terms" />} />
 

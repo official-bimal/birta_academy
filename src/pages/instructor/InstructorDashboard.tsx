@@ -361,12 +361,12 @@ export function InstructorDashboard() {
                       key={batch.id}
                       className={`p-6 rounded-xl bg-white dark:bg-slate-900 border transition-colors ${
                         active
-                          ? 'border-violet-600'
+                          ? 'border-brand-600'
                           : 'border-slate-200 dark:border-slate-800'
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span className="capitalize font-medium text-violet-700 dark:text-violet-400">
+                        <span className="capitalize font-medium text-brand-700 dark:text-brand-400">
                           {batch.status}
                         </span>
                         <span className="font-mono tabular-nums">
@@ -446,7 +446,7 @@ export function InstructorDashboard() {
                 </div>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90"
                 >
                   Add Live Session
                 </button>
@@ -538,7 +538,7 @@ export function InstructorDashboard() {
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90"
                 >
                   Publish Lesson
                 </button>
@@ -619,7 +619,7 @@ export function InstructorDashboard() {
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90"
                 >
                   Publish Assignment
                 </button>
@@ -658,7 +658,7 @@ export function InstructorDashboard() {
                             href={sub.submissionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-violet-700 dark:text-violet-400 underline"
+                            className="text-brand-700 dark:text-brand-400 underline"
                           >
                             {sub.submissionUrl}
                           </a>
@@ -709,7 +709,7 @@ export function InstructorDashboard() {
                           <button
                             type="button"
                             onClick={() => void handleGrade(sub)}
-                            className="md:col-span-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                            className="md:col-span-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                           >
                             Save Review
                           </button>
@@ -783,7 +783,7 @@ export function InstructorDashboard() {
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                 >
                   Send Announcement
                 </button>

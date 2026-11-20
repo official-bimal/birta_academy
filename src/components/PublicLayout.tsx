@@ -4,6 +4,7 @@ import { Menu, Moon, Sun, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useCatalog } from '../context/CatalogContext';
+import { BrandLogo } from './BrandLogo';
 
 const PUBLIC_NAV_LINKS = [
   { to: '/courses', label: 'Courses' },
@@ -41,9 +42,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           {/* Zone 1: Single-line Brand Wordmark */}
           <Link
             to="/"
-            className="font-display text-lg font-bold tracking-tight text-slate-950 dark:text-white whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-600"
+            className="inline-flex shrink-0 rounded-md"
           >
-            Birta Academy
+            <BrandLogo size={36} withWordmark />
           </Link>
 
           {/* Zone 2: 5 Concise Single-Line Navigation Links */}
@@ -58,7 +59,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) =>
                   `whitespace-nowrap shrink-0 py-1 transition-colors duration-150 hover:text-slate-950 dark:hover:text-white ${
                     isActive
-                      ? 'text-violet-700 dark:text-violet-400 underline underline-offset-8 decoration-2'
+                      ? 'text-brand-700 dark:text-brand-400 underline underline-offset-8 decoration-2'
                       : ''
                   }`
                 }
@@ -82,14 +83,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             {!loading && profile ? (
               <Link
                 to={portalPath}
-                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:bg-slate-800 dark:hover:bg-violet-500 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors whitespace-nowrap shrink-0"
               >
                 {portalLabel}
               </Link>
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:bg-slate-800 dark:hover:bg-violet-500 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors whitespace-nowrap shrink-0"
               >
                 Sign In
               </Link>
@@ -118,7 +119,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   className={({ isActive }) =>
                     `py-2 text-sm font-medium ${
                       isActive
-                        ? 'text-violet-700 dark:text-violet-400'
+                        ? 'text-brand-700 dark:text-brand-400'
                         : 'text-slate-700 dark:text-slate-200'
                     }`
                   }
@@ -137,11 +138,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
               </button>
               <Link
-                to="/register"
+                to="/login"
                 onClick={() => setMobileOpen(false)}
-                className="text-sm font-medium text-violet-700 dark:text-violet-400"
+                className="text-sm font-medium text-brand-700 dark:text-brand-400"
               >
-                Create Account
+                Student Login
               </Link>
             </div>
           </div>
@@ -156,10 +157,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="md:col-span-5 space-y-3">
             <Link
               to="/"
-              className="font-display text-lg font-bold tracking-tight text-slate-950 dark:text-white"
+              className="inline-flex shrink-0 rounded-md"
             >
-              Birta Academy
-            </Link>
+            <BrandLogo size={36} withWordmark />
+          </Link>
             <p className="text-sm text-slate-600 dark:text-slate-400 max-w-sm leading-relaxed">
               Learn Skills. Build Your Future. Nepal-based online skill training with instructor-led
               live classes, practical assignments, recorded replays, and completion certificates.
@@ -180,12 +181,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="md:col-span-2 space-y-2.5">
-            <h3 className="text-xs font-semibold text-slate-900 dark:text-slate-100">Portals</h3>
+            <h3 className="text-xs font-semibold text-slate-900 dark:text-slate-100">Students</h3>
             <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-              <li><Link to="/student" className="hover:text-slate-950 dark:hover:text-white transition-colors">Student Dashboard</Link></li>
-              <li><Link to="/instructor" className="hover:text-slate-950 dark:hover:text-white transition-colors">Instructor Portal</Link></li>
-              <li><Link to="/admin" className="hover:text-slate-950 dark:hover:text-white transition-colors">Admin Console</Link></li>
+              <li><Link to="/login" className="hover:text-slate-950 dark:hover:text-white transition-colors">Student Login</Link></li>
               <li><Link to="/contact" className="hover:text-slate-950 dark:hover:text-white transition-colors">Admissions Inquiry</Link></li>
+              <li><a href="https://www.facebook.com/birtaacademy/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-950 dark:hover:text-white transition-colors">Facebook</a></li>
+              <li><a href="https://www.instagram.com/birtaacademy_/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-950 dark:hover:text-white transition-colors">Instagram</a></li>
             </ul>
           </div>
 

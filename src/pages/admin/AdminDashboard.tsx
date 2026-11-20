@@ -601,7 +601,7 @@ export function AdminDashboard() {
                     type="button"
                     disabled={busyAction === 'seed'}
                     onClick={() => void handleSeedDemo()}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white whitespace-nowrap shrink-0"
+                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white whitespace-nowrap shrink-0"
                   >
                     {busyAction === 'seed' ? 'Seeding Catalog...' : 'Seed Sample Catalog'}
                   </button>
@@ -616,7 +616,7 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setActiveTab('audit')}
-                    className="text-xs font-medium text-violet-700 dark:text-violet-400 hover:underline"
+                    className="text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     Full Audit Trail
                   </button>
@@ -929,7 +929,7 @@ export function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={busyAction === 'course'}
-                  className="px-5 py-2.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 disabled:opacity-50"
+                  className="px-5 py-2.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {editingCourseId ? 'Update Course' : 'Save Course'}
                 </button>
@@ -1077,7 +1077,7 @@ export function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={busyAction === 'batch'}
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                 >
                   Create Live Batch
                 </button>
@@ -1148,7 +1148,7 @@ export function AdminDashboard() {
                 </div>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                 >
                   Create Category
                 </button>
@@ -1219,7 +1219,7 @@ export function AdminDashboard() {
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                 >
                   Save Instructor Profile
                 </button>
@@ -1231,7 +1231,7 @@ export function AdminDashboard() {
                     key={inst.id}
                     className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
                   >
-                    <p className="text-xs text-violet-700 dark:text-violet-400">
+                    <p className="text-xs text-brand-700 dark:text-brand-400">
                       {inst.specialty} {inst.isDemo ? '· Demo' : ''}
                     </p>
                     <p className="font-semibold text-sm text-slate-950 dark:text-white mt-1">
@@ -1328,7 +1328,7 @@ export function AdminDashboard() {
                               type="button"
                               disabled={busyAction === `cert_${enr.id}`}
                               onClick={() => void handleIssueCert(enr)}
-                              className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                              className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                             >
                               Issue Certificate
                             </button>
@@ -1343,7 +1343,7 @@ export function AdminDashboard() {
                 {certificates.map((cert) => (
                   <div key={cert.id} className="p-5 flex items-center justify-between gap-4 text-sm">
                     <div>
-                      <p className="font-mono text-xs text-violet-700 dark:text-violet-400">
+                      <p className="font-mono text-xs text-brand-700 dark:text-brand-400">
                         {cert.certificateCode} · {cert.status.toUpperCase()}
                       </p>
                       <p className="font-semibold text-slate-950 dark:text-white mt-0.5">
@@ -1388,7 +1388,7 @@ export function AdminDashboard() {
                     </span>
                     <span className="font-mono uppercase">{inq.status}</span>
                   </div>
-                  <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
+                  <p className="text-xs font-medium text-brand-700 dark:text-brand-400">
                     Interest: {inq.courseInterest}
                   </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300">{inq.message}</p>
@@ -1551,7 +1551,7 @@ export function AdminDashboard() {
               <button
                 type="submit"
                 disabled={busyAction === 'settings'}
-                className="px-5 py-2.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                className="px-5 py-2.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
               >
                 Save Academy Settings
               </button>

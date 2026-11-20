@@ -84,7 +84,7 @@ export function CoursesPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search courses, skills, or topics..."
                 aria-label="Search courses"
-                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600"
               />
             </div>
 
@@ -112,7 +112,7 @@ export function CoursesPage() {
               to="/courses"
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                 !activeCategory
-                  ? 'bg-slate-950 text-white dark:bg-violet-600'
+                  ? 'bg-slate-950 text-white dark:bg-brand-600'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800'
               }`}
             >
@@ -124,7 +124,7 @@ export function CoursesPage() {
                 to={`/categories/${cat.slug}`}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                   activeCategory?.id === cat.id
-                    ? 'bg-slate-950 text-white dark:bg-violet-600'
+                    ? 'bg-slate-950 text-white dark:bg-brand-600'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800'
                 }`}
               >
@@ -167,7 +167,7 @@ export function CoursesPage() {
                   setSearchQuery('');
                   setSelectedLevel('All');
                 }}
-                className="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 text-white dark:bg-violet-600 hover:opacity-90"
+                className="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 text-white dark:bg-brand-600 hover:opacity-90"
               >
                 Reset Filters
               </button>

@@ -11,7 +11,7 @@ export function LegalPage({ type }: LegalPageProps) {
     <PublicLayout>
       <article className="max-w-3xl mx-auto px-6 py-14 lg:py-20 space-y-8">
         <header className="pb-6 border-b border-slate-200 dark:border-slate-800">
-          <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
+          <p className="text-xs font-medium text-brand-700 dark:text-brand-400">
             Birta Academy Legal
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-slate-950 dark:text-white">

@@ -66,7 +66,7 @@ export function BatchesPage() {
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <span className="font-medium capitalize text-violet-700 dark:text-violet-400">
+                    <span className="font-medium capitalize text-brand-700 dark:text-brand-400">
                       {batch.status}
                     </span>
                     <span aria-hidden="true">·</span>
@@ -111,7 +111,7 @@ export function BatchesPage() {
                   </span>
                   <Link
                     to={`/courses/${batch.courseSlug}?batch=${batch.id}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:bg-slate-800 dark:hover:bg-violet-500 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors"
                   >
                     <span>Enroll in Batch</span>
                     <ArrowRight className="w-3.5 h-3.5" />

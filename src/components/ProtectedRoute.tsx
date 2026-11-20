@@ -43,7 +43,7 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
           <div className="pt-2 flex items-center gap-3">
             <Link
               to="/student"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
             >
               Go to Student Dashboard
             </Link>

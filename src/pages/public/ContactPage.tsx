@@ -147,7 +147,7 @@ export function ContactPage() {
                   <button
                     type="button"
                     onClick={() => void signInWithGoogle()}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 transition-opacity"
+                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 transition-opacity"
                   >
                     Sign In with Google to Continue
                   </button>
@@ -169,7 +169,7 @@ export function ContactPage() {
                         maxLength={100}
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                       />
                     </div>
                     <div>
@@ -186,7 +186,7 @@ export function ContactPage() {
                         maxLength={200}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                       />
                     </div>
                   </div>
@@ -206,7 +206,7 @@ export function ContactPage() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="+977 98XXXXXXXX"
-                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                       />
                     </div>
                     <div>
@@ -220,7 +220,7 @@ export function ContactPage() {
                         id="inq-course"
                         value={courseInterest}
                         onChange={(e) => setCourseInterest(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                       >
                         <option value="General Admissions Inquiry">General Admissions Inquiry</option>
                         {courses.map((c) => (
@@ -247,7 +247,7 @@ export function ContactPage() {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Tell us about your learning goals, schedule questions, or batch inquiry..."
-                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                     />
                   </div>
 
@@ -271,7 +271,7 @@ export function ContactPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-6 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    className="px-6 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                   >
                     {submitting ? 'Submitting Inquiry...' : 'Submit Admission Inquiry'}
                   </button>

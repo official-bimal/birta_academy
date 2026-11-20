@@ -103,7 +103,7 @@ export function CourseDetailPage() {
           </p>
           <Link
             to="/courses"
-            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg bg-slate-950 text-white dark:bg-violet-600"
+            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg bg-slate-950 text-white dark:bg-brand-600"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Catalog</span>
@@ -129,7 +129,7 @@ export function CourseDetailPage() {
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
             <div className="lg:col-span-7">
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="font-medium text-violet-700 dark:text-violet-400">
+                <span className="font-medium text-brand-700 dark:text-brand-400">
                   {course.categoryName}
                 </span>
                 <span aria-hidden="true">·</span>
@@ -205,7 +205,7 @@ export function CourseDetailPage() {
                     key={index}
                     className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300 leading-relaxed"
                   >
-                    <CheckCircle2 className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0 mt-0.5" />
                     <span>{outcome}</span>
                   </li>
                 ))}
@@ -234,7 +234,7 @@ export function CourseDetailPage() {
                   Cohort Instructor
                 </h2>
                 <div className="mt-4 p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                  <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
+                  <p className="text-xs font-medium text-brand-700 dark:text-brand-400">
                     {instructor.specialty}
                   </p>
                   <h3 className="mt-1 font-display text-lg font-semibold text-slate-950 dark:text-white">
@@ -278,7 +278,7 @@ export function CourseDetailPage() {
                       id="batch-select"
                       value={selectedBatchId}
                       onChange={(e) => setSelectedBatchId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                     >
                       {courseBatches.map((b) => (
                         <option key={b.id} value={b.id}>
@@ -320,7 +320,7 @@ export function CourseDetailPage() {
                           onClick={() => setPaymentMethod(m.id)}
                           className={`py-2 px-3 text-xs font-medium rounded-lg border transition-colors ${
                             paymentMethod === m.id
-                              ? 'border-violet-600 bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300'
+                              ? 'border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-950/60 dark:text-brand-300'
                               : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                         >
@@ -367,7 +367,7 @@ export function CourseDetailPage() {
                         value={paymentReference}
                         onChange={(e) => setPaymentReference(e.target.value)}
                         placeholder="e.g. TXN-20261120-8492"
-                        className="w-full px-3.5 py-2.5 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                        className="w-full px-3.5 py-2.5 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                       />
                     </div>
 
@@ -385,7 +385,7 @@ export function CourseDetailPage() {
                         value={paymentNotes}
                         onChange={(e) => setPaymentNotes(e.target.value)}
                         placeholder="Account holder name or remarks for admin verification"
-                        className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-600"
+                        className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600"
                       />
                     </div>
                   </div>
@@ -421,7 +421,7 @@ export function CourseDetailPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:bg-slate-800 dark:hover:bg-violet-500 disabled:opacity-50 transition-colors"
+                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 disabled:opacity-50 transition-colors"
                     >
                       {submitting
                         ? 'Submitting Application...'
@@ -431,7 +431,7 @@ export function CourseDetailPage() {
                     <button
                       type="button"
                       onClick={() => void signInWithGoogle()}
-                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:bg-slate-800 dark:hover:bg-violet-500 transition-colors"
+                      className="w-full py-3 px-4 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:bg-slate-800 dark:hover:bg-brand-500 transition-colors"
                     >
                       Sign In with Google to Enroll
                     </button>
@@ -450,7 +450,7 @@ export function CourseDetailPage() {
                   <p>No live batches are currently scheduled for this course.</p>
                   <Link
                     to="/contact"
-                    className="inline-block text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline"
+                    className="inline-block text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline"
                   >
                     Inquire about the next cohort date
                   </Link>

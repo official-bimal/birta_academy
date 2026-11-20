@@ -36,7 +36,7 @@ export function InstructorsPage() {
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <span className="font-medium text-violet-700 dark:text-violet-400">
+                    <span className="font-medium text-brand-700 dark:text-brand-400">
                       {inst.specialty}
                     </span>
                     {inst.isDemo && (
@@ -74,7 +74,7 @@ export function InstructorsPage() {
                         <li key={c.id}>
                           <Link
                             to={`/courses/${c.slug}`}
-                            className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-violet-700 dark:hover:text-violet-400 hover:underline"
+                            className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-brand-700 dark:hover:text-brand-400 hover:underline"
                           >
                             {c.title}
                           </Link>

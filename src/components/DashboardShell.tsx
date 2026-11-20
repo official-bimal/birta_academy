@@ -77,7 +77,7 @@ export function DashboardShell({
               }}
               className={`w-full flex items-center justify-between gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
                 active
-                  ? 'bg-slate-900 text-white dark:bg-violet-600 dark:text-white'
+                  ? 'bg-slate-900 text-white dark:bg-brand-600 dark:text-white'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
               }`}
             >

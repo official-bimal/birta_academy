@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /instructor
+Disallow: /student
+Disallow: /staff
+
+Sitemap: https://www.birtaacademy.com/sitemap.xml

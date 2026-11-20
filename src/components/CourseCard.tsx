@@ -25,7 +25,7 @@ export function CourseCard({ course, batchCount }: CourseCardProps) {
       <div className="flex-1 flex flex-col p-6">
         {/* Zero-pill quiet text metadata with typographic separators */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-medium text-violet-700 dark:text-violet-400">
+          <span className="font-medium text-brand-700 dark:text-brand-400">
             {course.categoryName}
           </span>
           <span aria-hidden="true">·</span>
@@ -43,7 +43,7 @@ export function CourseCard({ course, batchCount }: CourseCardProps) {
         <h3 className="mt-2.5 font-display text-lg font-semibold text-slate-950 dark:text-white leading-snug">
           <Link
             to={`/courses/${course.slug}`}
-            className="hover:text-violet-700 dark:hover:text-violet-400 transition-colors"
+            className="hover:text-brand-700 dark:hover:text-brand-400 transition-colors"
           >
             {course.title}
           </Link>
@@ -67,7 +67,7 @@ export function CourseCard({ course, batchCount }: CourseCardProps) {
 
           <Link
             to={`/courses/${course.slug}`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-violet-700 dark:hover:text-violet-400 transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-brand-700 dark:hover:text-brand-400 transition-colors whitespace-nowrap shrink-0"
           >
             <span>View Details</span>
             <ArrowRight className="w-4 h-4" />

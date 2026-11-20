@@ -332,7 +332,7 @@ export function StudentDashboard() {
       headerAction={
         <Link
           to="/courses"
-          className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 whitespace-nowrap"
+          className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 whitespace-nowrap"
         >
           Browse Catalog
         </Link>
@@ -402,7 +402,7 @@ export function StudentDashboard() {
                   </p>
                   <Link
                     to="/courses"
-                    className="inline-block mt-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white"
+                    className="inline-block mt-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
                   >
                     Explore Course Catalog
                   </Link>
@@ -417,7 +417,7 @@ export function StudentDashboard() {
                       <button
                         type="button"
                         onClick={() => setActiveTab('courses')}
-                        className="text-xs font-medium text-violet-700 dark:text-violet-400 hover:underline"
+                        className="text-xs font-medium text-brand-700 dark:text-brand-400 hover:underline"
                       >
                         View all
                       </button>
@@ -553,7 +553,7 @@ export function StudentDashboard() {
                                 }
                                 setActiveTab('player');
                               }}
-                              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90"
+                              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90"
                             >
                               Open Lesson Player
                             </button>
@@ -587,7 +587,7 @@ export function StudentDashboard() {
                   >
                     <div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span className="font-medium text-violet-700 dark:text-violet-400">
+                        <span className="font-medium text-brand-700 dark:text-brand-400">
                           {session.courseTitle}
                         </span>
                         <span aria-hidden="true">·</span>
@@ -607,7 +607,7 @@ export function StudentDashboard() {
                         href={session.meetingUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 whitespace-nowrap shrink-0"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 whitespace-nowrap shrink-0"
                       >
                         <span>Join Live Class</span>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -724,7 +724,7 @@ export function StudentDashboard() {
                               onClick={() => setSelectedLessonId(lesson.id)}
                               className={`w-full px-4 py-3.5 text-left flex items-start justify-between gap-3 transition-colors ${
                                 isSelected
-                                  ? 'bg-violet-50 dark:bg-violet-950/40'
+                                  ? 'bg-brand-50 dark:bg-brand-950/40'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                               }`}
                             >
@@ -762,7 +762,7 @@ export function StudentDashboard() {
                         <>
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                             <div>
-                              <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
+                              <p className="text-xs font-medium text-brand-700 dark:text-brand-400">
                                 {activeLesson.moduleTitle} · {activeLesson.durationMinutes} min
                               </p>
                               <h2 className="mt-1 font-display text-xl font-semibold text-slate-950 dark:text-white">
@@ -776,7 +776,7 @@ export function StudentDashboard() {
                               className={`px-4 py-2 text-xs font-semibold rounded-lg whitespace-nowrap shrink-0 transition-colors ${
                                 completedLessonIds.has(activeLesson.id)
                                   ? 'bg-emerald-700 text-white hover:bg-emerald-600'
-                                  : 'bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90'
+                                  : 'bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90'
                               }`}
                             >
                               {completedLessonIds.has(activeLesson.id)
@@ -794,7 +794,7 @@ export function StudentDashboard() {
                                 href={activeLesson.videoUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-500 transition-colors"
                               >
                                 <PlayCircle className="w-4 h-4" />
                                 <span>Open Recorded Lesson Video</span>
@@ -823,7 +823,7 @@ export function StudentDashboard() {
                                 href={activeLesson.resourceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:underline"
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-400 hover:underline"
                               >
                                 <FolderOpen className="w-4 h-4" />
                                 <span>Open Attached Study Resource</span>
@@ -859,7 +859,7 @@ export function StudentDashboard() {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                         <div>
-                          <p className="text-xs font-medium text-violet-700 dark:text-violet-400">
+                          <p className="text-xs font-medium text-brand-700 dark:text-brand-400">
                             {asgn.courseTitle} · Max Score:{' '}
                             <span className="font-mono tabular-nums">{asgn.maxScore}</span>
                           </p>
@@ -890,7 +890,7 @@ export function StudentDashboard() {
                               href={sub.submissionUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-violet-700 dark:text-violet-400 underline"
+                              className="text-brand-700 dark:text-brand-400 underline"
                             >
                               {sub.submissionUrl}
                             </a>
@@ -930,7 +930,7 @@ export function StudentDashboard() {
                           <button
                             type="submit"
                             disabled={submittingAssignmentId === asgn.id}
-                            className="md:col-span-3 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 disabled:opacity-50"
+                            className="md:col-span-3 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 disabled:opacity-50"
                           >
                             {submittingAssignmentId === asgn.id
                               ? 'Submitting...'
@@ -974,7 +974,7 @@ export function StudentDashboard() {
                         href={lesson.resourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline whitespace-nowrap"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 dark:text-brand-400 hover:underline whitespace-nowrap"
                       >
                         <span>Open Resource</span>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -1017,7 +1017,7 @@ export function StudentDashboard() {
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                         <div
-                          className="h-full bg-violet-600 transition-all duration-300"
+                          className="h-full bg-brand-600 transition-all duration-300"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -1175,7 +1175,7 @@ export function StudentDashboard() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-violet-600 text-white hover:opacity-90 disabled:opacity-50"
+                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 disabled:opacity-50"
               >
                 {savingProfile ? 'Saving...' : 'Save Changes'}
               </button>

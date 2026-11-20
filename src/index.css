@@ -4,6 +4,18 @@
 @theme {
   --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Brand scale derived from the official logo field colour #0000FE (brand-600) */
+  --color-brand-50: #eef0ff;
+  --color-brand-100: #dfe3ff;
+  --color-brand-200: #c4cbff;
+  --color-brand-300: #9aa6ff;
+  --color-brand-400: #7482ff;
+  --color-brand-500: #3d44ff;
+  --color-brand-600: #0000fe;
+  --color-brand-700: #0000d6;
+  --color-brand-800: #0000a8;
+  --color-brand-900: #000580;
+  --color-brand-950: #00034d;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -11,6 +23,11 @@
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
   }
 
   h1, h2, h3, h4, .font-display {
