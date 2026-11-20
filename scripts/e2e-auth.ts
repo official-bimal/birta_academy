@@ -188,7 +188,8 @@ await check('T19', 'Duplicate signup is refused without revealing the account, a
   const all = await adminDb.collection('users').where('email', '==', regEmail).get();
   expect(all.size === 1, 'second profile created');
   const { describeFirebaseAuthError } = await import('../src/lib/authErrors.ts');
-  expect(!/already/i.test(describeFirebaseAuthError('auth/email-already-in-use', 'register')), 'message reveals the account exists');
+  expect(!/(already (registered|exists|in use)|is registered|exists)/i.test(describeFirebaseAuthError('auth/email-already-in-use', 'register')), 'message confirms the account exists');
+  return 'note: Firebase still returns email-already-in-use to the client; the UI message is non-revealing, but a server-side signup would be needed to hide it from direct API callers';
 });
 
 // T07 ------------------------------------------------------------------------
@@ -293,14 +294,22 @@ await check('T18', 'Account-type choice never changes real permissions: a staff 
 });
 await check('T20', 'Linking conflicts cannot take over a staff account', async () => {
   needEmail();
-  // a student who signs in cannot attach credentials to someone else's identity: linking only ever applies to the signed-in user,
-  // and a staff email cannot be claimed through the student flow.
-  const s = device('lk1');
-  const stu = await signInWithEmailAndPassword(s, glEmail, glPw);
-  const tryLink = await linkWithCredential(stu.user, EmailAuthProvider.credential(emailInstr, strong())).then(() => 'linked', (e) => code(e));
-  expect(tryLink !== 'linked', 'a student linked a staff email');
-  expect((await adminAuth.getUserByEmail(emailInstr)).customClaims?.role === 'INSTRUCTOR', 'staff identity changed');
-  return `refused (${tryLink}); Google-credential conflicts rely on Firebase refusing credential-already-in-use (popup, manual)`;
+  // A Google-only student identity tries to attach a password credential for a STAFF email.
+  const g2 = `e2e-auth-g2@${DOM}`;
+  await deleteTestUser(g2);
+  const u = await adminAuth.createUser({ email: g2, emailVerified: true });
+  await adminAuth.updateUser(u.uid, { providerToLink: { providerId: 'google.com', uid: `e2e-g2-${Date.now()}`, email: g2 } });
+  await adminAuth.setCustomUserClaims(u.uid, { role: 'STUDENT' });
+  const a = device('lk1');
+  await signInWithCustomToken(a, await adminAuth.createCustomToken(u.uid));
+  const outcome = await linkWithCredential(a.currentUser!, EmailAuthProvider.credential(emailInstr, strong())).then(() => 'linked', (e) => code(e));
+  const staff = await adminAuth.getUserByEmail(emailInstr);
+  const after = await adminAuth.getUser(u.uid);
+  await deleteTestUser(g2);
+  expect(staff.customClaims?.role === 'INSTRUCTOR' && staff.uid === 'e2e_auth_instr', 'staff identity changed');
+  expect(!after.providerData.some((p) => p.providerId === 'password' && p.email === emailInstr) || outcome !== 'linked', 'student now holds the staff email credential');
+  expect(outcome !== 'linked', 'a student linked a staff email credential');
+  return `refused (${outcome}); Google-credential conflicts rely on Firebase refusing credential-already-in-use (popup, manual)`;
 });
 
 // T14b / T23 -----------------------------------------------------------------

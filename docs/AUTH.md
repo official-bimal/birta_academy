@@ -38,3 +38,9 @@ Routes: `/login`, `/register` (-> `/student/register`), `/student/login`, `/stud
 - MFA must be enabled in Firebase (TOTP) before production admin use.
 - Google popups cannot be automated; Google link/reauth paths are verified manually.
 - Add `www.birtaacademy.com` to Authentication -> Authorized domains before launch, and set `APP_URL`.
+
+## Test status (2026-11-21, real Firebase dev project)
+
+`npm run test:auth`: **17 PASS, 0 FAIL, 1 BLOCKED** (T08, needs a real Google popup). Email/Password sign-in and the server password policy were enabled with `npm run configure:auth -- --apply` (owner-approved). Also verified by hand in the browser: register page -> `/verify-email` -> verification detected -> `/student`; session survives a full reload; sign out -> `/student/login`; email/password sign-in -> `/student`; security page lists connected providers.
+
+Residual: Firebase still returns `auth/email-already-in-use` to a direct API caller on duplicate signup (the UI message is non-revealing); hiding it fully needs a server-side signup endpoint.
