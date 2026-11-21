@@ -80,7 +80,7 @@ const apiCode = (status: number) => (e: any) => e instanceof ApiError && e.statu
 const passwords: Record<string, string> = {};
 async function ensureUser(uid: string, role: 'STUDENT' | 'INSTRUCTOR' | 'SUPER_ADMIN', name: string, withPassword: boolean) {
   const email = `${uid.replace(/_/g, '-')}@${DOM}`;
-  const password = crypto.randomBytes(18).toString('base64url');
+  const password = crypto.randomBytes(18).toString('base64url') + '-Aa1!';
   try {
     await adminAuth.getUser(uid);
     await adminAuth.updateUser(uid, { email, displayName: `[TEST] ${name}`, emailVerified: true, disabled: false, ...(withPassword ? { password } : {}) });
@@ -284,7 +284,7 @@ await check('T06a', 'Student A enrolls; server ignores tampered price/instructor
 await check('T06b', 'Unapproved student A cannot read lessons or sessions (access locked before approval)', async () => {
   await signInAs(IDS.A);
   await expectRejected(() => svc.listBatchLessons(BATCH), isPerm, 'lessons before approval');
-  await expectRejected(() => svc.listBatchLiveSessions(BATCH), isPerm, 'sessions before approval');
+  await expectRejected(() => svc.listBatchLiveSessions(BATCH, true), isPerm, 'sessions before approval');
 });
 await check('T06c', 'Pending enrollment cannot be completed; unknown enrollment 404', async () => {
   await signInAs(IDS.ADMIN);
@@ -381,7 +381,7 @@ await check('T08c', 'Instructor 2 cannot schedule in / read instructor 1’s bat
 // 9. students see sessions
 await check('T09a', 'Enrolled student A sees both upcoming sessions (without Meet URLs)', async () => {
   await signInAs(IDS.A);
-  const list = await svc.listBatchLiveSessions(BATCH);
+  const list = await svc.listBatchLiveSessions(BATCH, true);
   expect(list.length === 2, `expected 2 sessions, got ${list.length}`);
   expect(list.every((s: any) => !('meetingUrl' in s)), 'meetingUrl present in student-readable data');
 });
@@ -393,7 +393,7 @@ await check('T09b', 'Join link is released inside the join window and withheld o
 });
 await check('T09c', 'Non-enrolled student C cannot read sessions or get a join link', async () => {
   await signInAs(IDS.C);
-  await expectRejected(() => svc.listBatchLiveSessions(BATCH), isPerm, 'sessions for C');
+  await expectRejected(() => svc.listBatchLiveSessions(BATCH, true), isPerm, 'sessions for C');
   await expectRejected(() => svc.requestSessionLink(BATCH, soonId, 'join'), apiCode(403), 'join for C');
 });
 await check('T09d', 'Attendance: instructor marks enrolled students; non-enrolled student rejected', async () => {

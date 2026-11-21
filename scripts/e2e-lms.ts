@@ -248,9 +248,13 @@ await step('W11', 'S1 opens the roadmap via a short-lived link; bytes match; tam
   const view = await call('POST', `/api/batches/${batchId}/resources/${lectureId}/link`, tS1, { download: false });
   expect(view.status === 200, 'view blocked although allowed');
   const rawPath = (await adminDb.collection('batches').doc(batchId).collection('resources').doc(roadmapId).get()).data()!.storagePath as string;
-  const direct = await realFetch(`${API}/${rawPath}`);
-  const pub = await realFetch(`http://localhost:3001/${rawPath}`).catch(() => null);
-  expect(direct.status === 404 && (!pub || !String(pub.headers.get('content-type')).includes('pdf')), 'a guessed path served the file');
+  const leaked = async (u: string) => {
+    const r = await realFetch(u).catch(() => null);
+    if (!r) return false;
+    const t = await r.text();
+    return String(r.headers.get('content-type')).includes('pdf') || t.includes('ROADMAP-V1');
+  };
+  expect(!(await leaked(`${API}/${rawPath}`)) && !(await leaked(`http://localhost:3001/${rawPath}`)), 'a guessed path served the file');
 });
 await step('W12', 'Join button rules: link only inside the window; unpublished class hidden; server decides', async () => {
   const soon = await call('POST', '/api/sessions/access', tS1, { batchId, sessionId: soonId, kind: 'join' });

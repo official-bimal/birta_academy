@@ -199,7 +199,7 @@ app.post('/api/admin/instructors', sensitiveLimiter, requireAuth, requireRole('S
     const record = await auth.createUser({
       email: parsed.email,
       displayName: parsed.name,
-      password: crypto.randomBytes(32).toString('base64url'),
+      password: crypto.randomBytes(32).toString('base64url') + '-Aa1!',
       emailVerified: false,
     });
     await auth.setCustomUserClaims(record.uid, { role: 'INSTRUCTOR' });

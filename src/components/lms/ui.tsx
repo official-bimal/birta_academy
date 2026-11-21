@@ -60,7 +60,7 @@ export function Pill({ tone = 'neutral', children }: { tone?: keyof typeof PILL;
 
 export function Tabs<T extends string>({ tabs, active, onChange }: { tabs: { id: T; label: string; count?: number }[]; active: T; onChange: (id: T) => void }) {
   return (
-    <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800 mb-6 -mx-1 px-1">
+    <div role="tablist" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-slate-800 mb-6 -mx-1 px-1">
       {tabs.map((t) => (
         <button
           key={t.id}

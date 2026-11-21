@@ -42,7 +42,7 @@ try {
     await auth.createUser({
       email,
       displayName: name,
-      password: crypto.randomBytes(32).toString('base64url'),
+      password: crypto.randomBytes(32).toString('base64url') + '-Aa1!',
     })
   ).uid;
 }
