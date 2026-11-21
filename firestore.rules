@@ -536,9 +536,9 @@ service cloud.firestore {
       // 6a-i. Learning resources (metadata only; files live in private storage and are released via short-lived links).
       match /resources/{resourceId} {
         allow get: if isValidId(batchId) && isValidId(resourceId)
-          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().published == true && existing().archived == false));
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().published == true));
         allow list: if isValidId(batchId)
-          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.published == true && resource.data.archived == false));
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.published == true));
         allow write: if false;
       }
 
@@ -554,9 +554,9 @@ service cloud.firestore {
       // 6b. Live Sessions (Master Gate: Admin, Assigned Instructor, or Approved Enrolled Student)
       match /liveSessions/{sessionId} {
         allow get: if isValidId(batchId) && isValidId(sessionId)
-          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().get('published', true) == true));
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().published == true));
         allow list: if isValidId(batchId)
-          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.get('published', true) == true));
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.published == true));
         // Sessions are written only by the trusted server (validates the Meet link, batch ownership).
         allow create, update, delete: if false;
 
