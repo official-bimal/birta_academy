@@ -16,7 +16,8 @@
     "check:admin": "tsx scripts/check-admin.ts",
     "test:e2e": "tsx scripts/e2e-local.ts",
     "test:auth": "tsx scripts/e2e-auth.ts",
-    "configure:auth": "tsx scripts/configure-auth.ts"
+    "configure:auth": "tsx scripts/configure-auth.ts",
+    "test:lms": "tsx scripts/e2e-lms.ts"
   },
   "dependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
@@ -32,6 +33,7 @@
     "helmet": "^8.3.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "multer": "^2.5.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
@@ -40,6 +42,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/multer": "^2.3.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

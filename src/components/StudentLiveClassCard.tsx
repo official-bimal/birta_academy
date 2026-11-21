@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useServerClock } from '../lib/lmsApi';
 import { ExternalLink } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { getOwnAttendance, requestSessionLink, type AttendanceRecord } from '../lib/firestoreService';
@@ -27,10 +28,8 @@ export function StudentLiveClassCard({ session, studentId, joinWindowMinutes }: 
   const [busy, setBusy] = useState(false);
   const [attendance, setAttendance] = useState<AttendanceRecord | null>(null);
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 15_000);
-    return () => clearInterval(t);
-  }, []);
+  // Server-corrected clock: a wrong device clock cannot show "Join" early (the server re-checks anyway).
+  useServerClock(setNow);
 
   useEffect(() => {
     getOwnAttendance(session.batchId, session.id, studentId).then(setAttendance).catch(() => setAttendance(null));
@@ -41,7 +40,7 @@ export function StudentLiveClassCard({ session, studentId, joinWindowMinutes }: 
     scheduledStart: session.scheduledStart,
     durationMinutes: session.durationMinutes,
     status: session.status,
-    joinWindowMinutes,
+    joinWindowMinutes: Math.min(session.joinWindowMinutes ?? joinWindowMinutes, joinWindowMinutes),
   });
   const countdown = phase === 'upcoming' || phase === 'joinable' ? countdownLabel(now, session.scheduledStart) : '';
 
@@ -69,6 +68,7 @@ export function StudentLiveClassCard({ session, studentId, joinWindowMinutes }: 
           {attendance && (<><span aria-hidden="true">·</span><span className="capitalize">Attendance: {attendance.status}</span></>)}
         </div>
         <h3 className="mt-1.5 font-display text-base font-semibold text-slate-950 dark:text-white">{session.title}</h3>
+        {session.description && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{session.description}</p>}
         <p className="mt-1 text-xs font-mono tabular-nums text-slate-600 dark:text-slate-400">
           {formatNptDateTime(session.scheduledStart)} · {session.durationMinutes} min · Google Meet
         </p>
@@ -81,7 +81,7 @@ export function StudentLiveClassCard({ session, studentId, joinWindowMinutes }: 
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
         ) : phase === 'upcoming' ? (
-          <span className="text-xs text-slate-500">Link opens {joinWindowMinutes} min before start</span>
+          <span className="text-xs text-slate-500">Link opens {Math.min(session.joinWindowMinutes ?? joinWindowMinutes, joinWindowMinutes)} min before start</span>
         ) : null}
         {session.hasRecording && (
           <button type="button" disabled={busy} onClick={() => void open('recording')} className="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 disabled:opacity-50">

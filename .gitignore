@@ -11,3 +11,5 @@ coverage/
 .env
 .dev-test-accounts.local.txt
 backups/
+
+.data/

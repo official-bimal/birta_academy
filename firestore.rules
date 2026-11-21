@@ -486,51 +486,16 @@ service cloud.firestore {
     match /courses/{courseId} {
       allow get: if isValidId(courseId) && (resource == null || existing().published == true || isAdmin() || (isSignedIn() && existing().instructorId == request.auth.uid));
       allow list: if resource.data.published == true || isAdmin() || (isSignedIn() && resource.data.instructorId == request.auth.uid);
-      allow create: if isAdmin()
-        && isValidId(courseId)
-        && isValidCourse(incoming())
-        && incoming().id == courseId
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time;
-      allow update: if isAdmin()
-        && isValidId(courseId)
-        && isValidCourse(incoming())
-        && incoming().id == existing().id
-        && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-          'slug', 'title', 'subtitle', 'categoryId', 'categoryName',
-          'instructorId', 'instructorName', 'level', 'durationWeeks', 'priceNpr',
-          'thumbnailUrl', 'description', 'outcomes', 'syllabus', 'published',
-          'featured', 'isDemo', 'updatedAt'
-        ]);
-      allow delete: if isAdmin() && isValidId(courseId);
+      // Courses are created/edited/archived only by the trusted server (validation, unique slug, audit).
+      allow create, update, delete: if false;
     }
 
     // 6. Batches (Public Cohort Schedule, Admin CRUD) + Gated Subcollections
     match /batches/{batchId} {
-      allow get: if isValidId(batchId) && (resource == null || existing().status in ['upcoming', 'ongoing', 'completed'] || isAdmin());
-      allow list: if resource.data.status in ['upcoming', 'ongoing', 'completed'] || isAdmin();
-      allow create: if isAdmin()
-        && isValidId(batchId)
-        && isValidBatch(incoming())
-        && incoming().id == batchId
-        && exists(/databases/$(database)/documents/courses/$(incoming().courseId))
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time;
-      allow update: if isAdmin()
-        && isValidId(batchId)
-        && isValidBatch(incoming())
-        && incoming().id == existing().id
-        && incoming().courseId == existing().courseId
-        && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-          'courseTitle', 'courseSlug', 'instructorId', 'instructorName',
-          'name', 'startDate', 'endDate', 'scheduleText', 'timezone',
-          'seatLimit', 'priceNpr', 'status', 'isDemo', 'updatedAt'
-        ]);
-      allow delete: if isAdmin() && isValidId(batchId);
+      allow get: if isValidId(batchId) && (resource == null || existing().status in ['upcoming', 'ongoing', 'completed'] || isAdmin() || (isSignedIn() && existing().instructorId == request.auth.uid));
+      allow list: if resource.data.status in ['upcoming', 'ongoing', 'completed'] || isAdmin() || (isSignedIn() && resource.data.instructorId == request.auth.uid);
+      // Batches (and the instructor assignment) are written only by the trusted server, which verifies the instructor.
+      allow create, update, delete: if false;
 
       // 6a. Lessons (Master Gate: Admin, Assigned Instructor, or Approved Enrolled Student)
       match /lessons/{lessonId} {
@@ -568,12 +533,30 @@ service cloud.firestore {
         allow list, write: if false;
       }
 
+      // 6a-i. Learning resources (metadata only; files live in private storage and are released via short-lived links).
+      match /resources/{resourceId} {
+        allow get: if isValidId(batchId) && isValidId(resourceId)
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().published == true && existing().archived == false));
+        allow list: if isValidId(batchId)
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.published == true && resource.data.archived == false));
+        allow write: if false;
+      }
+
+      // 6a-ii. Daily class notes: students see published notes only.
+      match /notes/{noteId} {
+        allow get: if isValidId(batchId) && isValidId(noteId)
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().status == 'published'));
+        allow list: if isValidId(batchId)
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.status == 'published'));
+        allow write: if false;
+      }
+
       // 6b. Live Sessions (Master Gate: Admin, Assigned Instructor, or Approved Enrolled Student)
       match /liveSessions/{sessionId} {
         allow get: if isValidId(batchId) && isValidId(sessionId)
-          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && existing().get('published', true) == true));
         allow list: if isValidId(batchId)
-          && (isAdmin() || isBatchInstructor(batchId) || isApprovedEnrolledInBatch(batchId));
+          && (isAdmin() || isBatchInstructor(batchId) || (isApprovedEnrolledInBatch(batchId) && resource.data.get('published', true) == true));
         // Sessions are written only by the trusted server (validates the Meet link, batch ownership).
         allow create, update, delete: if false;
 

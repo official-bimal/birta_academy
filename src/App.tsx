@@ -23,8 +23,8 @@ const StaffLoginPage = lazy(() => import('./pages/staff/StaffLoginPage').then((m
 const StaffSecurityPage = lazy(() => import('./pages/staff/StaffSecurityPage').then((m) => ({ default: m.StaffSecurityPage })));
 const LegalPage = lazy(() => import('./pages/public/LegalPage').then((m) => ({ default: m.LegalPage })));
 
-const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
-const InstructorDashboard = lazy(() => import('./pages/instructor/InstructorDashboard').then((m) => ({ default: m.InstructorDashboard })));
+const StudentApp = lazy(() => import('./pages/student/StudentApp').then((m) => ({ default: m.StudentApp })));
+const InstructorApp = lazy(() => import('./pages/instructor/InstructorApp').then((m) => ({ default: m.InstructorApp })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 
 export default function App() {
@@ -73,7 +73,7 @@ export default function App() {
                   path="/student/*"
                   element={
                     <ProtectedRoute allowedRoles={["student"]} loginPath="/login" requireVerifiedEmail>
-                      <StudentDashboard />
+                      <StudentApp />
                     </ProtectedRoute>
                   }
                 />
@@ -83,7 +83,7 @@ export default function App() {
                   path="/instructor/*"
                   element={
                     <ProtectedRoute allowedRoles={['instructor', 'admin']} loginPath="/staff/login">
-                      <InstructorDashboard />
+                      <InstructorApp />
                     </ProtectedRoute>
                   }
                 />

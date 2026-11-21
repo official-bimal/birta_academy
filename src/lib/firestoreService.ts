@@ -433,188 +433,6 @@ export async function saveInstructorProfile(
   }
 }
 
-export async function saveCourse(
-  input: {
-    id?: string;
-    slug?: string;
-    title: string;
-    subtitle: string;
-    categoryId: string;
-    categoryName: string;
-    instructorId: string;
-    instructorName: string;
-    level: CourseLevel;
-    durationWeeks: number;
-    priceNpr: number;
-    thumbnailUrl?: string;
-    description: string;
-    outcomes: string[];
-    syllabus: string[];
-    published: boolean;
-    featured: boolean;
-    isDemo: boolean;
-  },
-  actor: UserProfile
-): Promise<string> {
-  const isNew = !input.id;
-  const id = input.id || makeSafeId('course');
-  const path = `courses/${id}`;
-  const safeOutcomes =
-    input.outcomes.length > 0
-      ? input.outcomes.slice(0, LIMITS.OUTCOMES_MAX_ITEMS).map((o) => clampString(o, LIMITS.ITEM_STR_MAX))
-      : ['Practical project-based skill mastery'];
-  const safeSyllabus =
-    input.syllabus.length > 0
-      ? input.syllabus.slice(0, LIMITS.SYLLABUS_MAX_ITEMS).map((s) => clampString(s, LIMITS.ITEM_STR_MAX))
-      : ['Module 1: Core Foundations'];
-
-  try {
-    const shared = stripUndefined({
-      slug: toSlug(input.slug || input.title),
-      title: clampString(input.title, LIMITS.TITLE_MAX),
-      subtitle: clampString(input.subtitle, LIMITS.SUBTITLE_MAX),
-      categoryId: clampString(input.categoryId, LIMITS.ID_MAX),
-      categoryName: clampString(input.categoryName, 80),
-      instructorId: clampString(input.instructorId, LIMITS.ID_MAX),
-      instructorName: clampString(input.instructorName, LIMITS.NAME_MAX),
-      level: input.level,
-      durationWeeks: Math.max(1, Math.min(52, Number(input.durationWeeks) || 4)),
-      priceNpr: Math.max(0, Math.min(500000, Number(input.priceNpr) || 0)),
-      thumbnailUrl: clampString(input.thumbnailUrl, 300),
-      description: clampString(input.description, LIMITS.LONG_DESC_MAX),
-      outcomes: safeOutcomes,
-      syllabus: safeSyllabus,
-      published: Boolean(input.published),
-      featured: Boolean(input.featured),
-      isDemo: Boolean(input.isDemo),
-      updatedAt: serverTimestamp(),
-    });
-
-    if (isNew) {
-      await setDoc(doc(db, 'courses', id), {
-        id,
-        currency: 'NPR',
-        ...shared,
-        createdAt: serverTimestamp(),
-      });
-    } else {
-      await updateDoc(doc(db, 'courses', id), shared);
-    }
-
-    await writeAuditLog({
-      actorId: actor.uid,
-      actorEmail: actor.email,
-      action: isNew ? 'CREATE_COURSE' : 'UPDATE_COURSE',
-      targetCollection: 'courses',
-      targetId: id,
-      summary: `${isNew ? 'Created' : 'Updated'} course "${input.title}" (NPR ${input.priceNpr})`,
-    });
-    return id;
-  } catch (error) {
-    handleFirestoreError(error, isNew ? OperationType.CREATE : OperationType.UPDATE, path);
-  }
-}
-
-export async function deleteCourse(id: string, title: string, actor: UserProfile): Promise<void> {
-  const path = `courses/${id}`;
-  try {
-    await deleteDoc(doc(db, 'courses', id));
-    await writeAuditLog({
-      actorId: actor.uid,
-      actorEmail: actor.email,
-      action: 'DELETE_COURSE',
-      targetCollection: 'courses',
-      targetId: id,
-      summary: `Deleted course "${title}"`,
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
-  }
-}
-
-export async function saveBatch(
-  input: {
-    id?: string;
-    courseId: string;
-    courseTitle: string;
-    courseSlug: string;
-    instructorId: string;
-    instructorName: string;
-    name: string;
-    startDate: string;
-    endDate: string;
-    scheduleText: string;
-    timezone: string;
-    seatLimit: number;
-    priceNpr: number;
-    status: BatchStatus;
-    isDemo: boolean;
-  },
-  actor: UserProfile
-): Promise<string> {
-  const isNew = !input.id;
-  const id = input.id || makeSafeId('batch');
-  const path = `batches/${id}`;
-  try {
-    const shared = {
-      courseTitle: clampString(input.courseTitle, LIMITS.TITLE_MAX),
-      courseSlug: toSlug(input.courseSlug),
-      instructorId: clampString(input.instructorId, LIMITS.ID_MAX),
-      instructorName: clampString(input.instructorName, LIMITS.NAME_MAX),
-      name: clampString(input.name, 120),
-      startDate: clampString(input.startDate, 30),
-      endDate: clampString(input.endDate, 30),
-      scheduleText: clampString(input.scheduleText, 120),
-      timezone: clampString(input.timezone || 'NPT (UTC+5:45)', 40),
-      seatLimit: Math.max(1, Math.min(500, Number(input.seatLimit) || 25)),
-      priceNpr: Math.max(0, Math.min(500000, Number(input.priceNpr) || 0)),
-      status: input.status,
-      isDemo: Boolean(input.isDemo),
-      updatedAt: serverTimestamp(),
-    };
-
-    if (isNew) {
-      await setDoc(doc(db, 'batches', id), {
-        id,
-        courseId: clampString(input.courseId, LIMITS.ID_MAX),
-        ...shared,
-        createdAt: serverTimestamp(),
-      });
-    } else {
-      await updateDoc(doc(db, 'batches', id), shared);
-    }
-
-    await writeAuditLog({
-      actorId: actor.uid,
-      actorEmail: actor.email,
-      action: isNew ? 'CREATE_BATCH' : 'UPDATE_BATCH',
-      targetCollection: 'batches',
-      targetId: id,
-      summary: `${isNew ? 'Scheduled' : 'Updated'} batch "${input.name}" for ${input.courseTitle}`,
-    });
-    return id;
-  } catch (error) {
-    handleFirestoreError(error, isNew ? OperationType.CREATE : OperationType.UPDATE, path);
-  }
-}
-
-export async function deleteBatch(id: string, name: string, actor: UserProfile): Promise<void> {
-  const path = `batches/${id}`;
-  try {
-    await deleteDoc(doc(db, 'batches', id));
-    await writeAuditLog({
-      actorId: actor.uid,
-      actorEmail: actor.email,
-      action: 'DELETE_BATCH',
-      targetCollection: 'batches',
-      targetId: id,
-      summary: `Deleted batch "${name}"`,
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Enrollments & Manual NPR Payment Verification
 // ---------------------------------------------------------------------------
@@ -646,6 +464,17 @@ export async function listStudentEnrollments(studentId: string): Promise<Enrollm
       query(collection(db, path), where('studentId', '==', studentId))
     );
     return snap.docs.map((d) => d.data() as Enrollment);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+/** Batches assigned to this instructor (admins see all). Assignment is set only by the Super Admin through the server. */
+export async function listInstructorBatches(instructorId: string, isAdminUser: boolean): Promise<Batch[]> {
+  const path = 'batches';
+  try {
+    const snap = await getDocs(isAdminUser ? collection(db, path) : query(collection(db, path), where('instructorId', '==', instructorId)));
+    return snap.docs.map((d) => d.data() as Batch).sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
@@ -753,10 +582,12 @@ export async function deleteBatchLesson(batchId: string, lessonId: string): Prom
   }
 }
 
-export async function listBatchLiveSessions(batchId: string): Promise<LiveSession[]> {
+export async function listBatchLiveSessions(batchId: string, asStudent = false): Promise<LiveSession[]> {
   const path = `batches/${batchId}/liveSessions`;
   try {
-    const snap = await getDocs(collection(db, 'batches', batchId, 'liveSessions'));
+    const col = collection(db, 'batches', batchId, 'liveSessions');
+    // students may only list published classes (enforced by the rules, so the query must say so)
+    const snap = await getDocs(asStudent ? query(col, where('published', '==', true)) : col);
     return snap.docs
       .map((d) => d.data() as LiveSession)
       .sort((a, b) => a.scheduledStart.localeCompare(b.scheduledStart));
@@ -775,6 +606,10 @@ export async function saveBatchLiveSession(input: {
   durationMinutes: number;
   meetingUrl: string;
   status?: 'scheduled' | 'completed' | 'cancelled';
+  description?: string;
+  moduleTitle?: string;
+  joinWindowMinutes?: number;
+  published?: boolean;
 }): Promise<string> {
   const res = await apiFetch<{ id: string }>('/staff/sessions', {
     method: 'POST',
@@ -1137,139 +972,6 @@ export async function adminUpdateInquiryStatus(
 // ---------------------------------------------------------------------------
 // Admin One-Click Starter Demo Catalog Seeder
 // ---------------------------------------------------------------------------
-export async function seedSampleCatalog(actor: UserProfile): Promise<void> {
-  try {
-    // 1. Settings
-    await setDoc(doc(db, 'settings', 'academy'), {
-      ...DEFAULT_ACADEMY_SETTINGS,
-      updatedAt: serverTimestamp(),
-    });
-
-    // 2. Categories
-    for (const cat of DEMO_CATEGORIES) {
-      await setDoc(doc(db, 'categories', cat.id), {
-        ...cat,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    // 3. Instructors
-    for (const inst of DEMO_INSTRUCTORS) {
-      await setDoc(doc(db, 'instructors', inst.id), {
-        ...inst,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    // 4. Courses (must exist before Batches per Firestore rules)
-    for (const course of DEMO_COURSES) {
-      await setDoc(doc(db, 'courses', course.id), {
-        ...course,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    // 5. Batches + Sample Lessons, Live Session, Assignment & Announcement
-    for (const batch of DEMO_BATCHES) {
-      await setDoc(doc(db, 'batches', batch.id), {
-        ...batch,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const lesson1Id = `${batch.id}_lesson_01`;
-      const lesson2Id = `${batch.id}_lesson_02`;
-      await setDoc(doc(db, 'batches', batch.id, 'lessons', lesson1Id), {
-        id: lesson1Id,
-        courseId: batch.courseId,
-        batchId: batch.id,
-        instructorId: batch.instructorId,
-        title: 'Orientation & Environment Setup (Sample Lesson)',
-        moduleTitle: 'Module 1: Foundations',
-        orderIndex: 1,
-        contentSummary:
-          'Demo orientation session covering cohort expectations, live session rhythm in Nepal Time (NPT), assignment rubric, and essential tools.',
-        videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        resourceUrl: 'https://birtaacademy.edu.np/resources/orientation-guide',
-        durationMinutes: 45,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      await setDoc(doc(db, 'batches', batch.id, 'lessons', lesson2Id), {
-        id: lesson2Id,
-        courseId: batch.courseId,
-        batchId: batch.id,
-        instructorId: batch.instructorId,
-        title: 'Core Framework & Practical Walkthrough (Sample Lesson)',
-        moduleTitle: 'Module 2: Core Workflow',
-        orderIndex: 2,
-        contentSummary:
-          'Hands-on guided workshop illustrating the core skills and workflow required for your first graded cohort milestone.',
-        durationMinutes: 60,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const sessionId = `${batch.id}_live_01`;
-      await setDoc(doc(db, 'batches', batch.id, 'liveSessions', sessionId), {
-        id: sessionId,
-        courseId: batch.courseId,
-        batchId: batch.id,
-        instructorId: batch.instructorId,
-        title: 'Week 1 Live Kickoff & Q&A',
-        scheduledStart: `${batch.startDate}T19:30`,
-        durationMinutes: 90,
-        meetingPlatform: 'Google Meet',
-        meetingUrl: 'https://meet.google.com/birta-demo-session',
-        status: 'scheduled',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const asgnId = `${batch.id}_asgn_01`;
-      await setDoc(doc(db, 'batches', batch.id, 'assignments', asgnId), {
-        id: asgnId,
-        courseId: batch.courseId,
-        batchId: batch.id,
-        instructorId: batch.instructorId,
-        title: 'Milestone 1 Practical Deliverable (Sample)',
-        instructions:
-          'Apply the Week 1 workflow to a real scenario and submit a shareable link (Google Drive, GitHub, Figma, or Notion) for instructor feedback.',
-        dueDate: batch.endDate,
-        maxScore: 100,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const annId = `${batch.id}_ann_01`;
-      await setDoc(doc(db, 'batches', batch.id, 'announcements', annId), {
-        id: annId,
-        courseId: batch.courseId,
-        batchId: batch.id,
-        instructorId: batch.instructorId,
-        authorName: batch.instructorName,
-        title: 'Welcome to Birta Academy',
-        body: 'Welcome to the cohort! Please review Module 1 before our first live session and reach out if you need help with setup.',
-        createdAt: serverTimestamp(),
-      });
-    }
-
-    await writeAuditLog({
-      actorId: actor.uid,
-      actorEmail: actor.email,
-      action: 'SEED_DEMO_CATALOG',
-      targetCollection: 'courses',
-      targetId: 'demo_seed',
-      summary: 'Seeded starter Birta Academy demo categories, instructors, courses, and batches into Firestore',
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'courses');
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Public certificate verification (reads the minimal mirror document only)
 // ---------------------------------------------------------------------------

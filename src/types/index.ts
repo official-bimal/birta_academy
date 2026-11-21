@@ -2,7 +2,7 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'student' | 'instructor' | 'admin';
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
-export type BatchStatus = 'upcoming' | 'ongoing' | 'completed';
+export type BatchStatus = 'draft' | 'upcoming' | 'ongoing' | 'completed' | 'archived';
 export type PaymentMethod = 'bank_transfer' | 'esewa_manual' | 'khalti_manual';
 export type PaymentStatus = 'pending_verification' | 'verified' | 'rejected' | 'waived';
 export type EnrollmentStatus = 'pending' | 'approved' | 'rejected' | 'completed';
@@ -67,6 +67,7 @@ export interface Course {
   outcomes: string[];
   syllabus: string[];
   published: boolean;
+  archived?: boolean;
   featured: boolean;
   isDemo: boolean;
   createdAt?: DateValue;
@@ -146,6 +147,10 @@ export interface LiveSession {
   /** The Meet URL itself is private; it is released by the API inside the join window. */
   hasMeetingLink?: boolean;
   hasRecording?: boolean;
+  description?: string;
+  moduleTitle?: string;
+  published?: boolean;
+  joinWindowMinutes?: number;
   status: LiveSessionStatus;
   createdAt?: DateValue;
   updatedAt?: DateValue;
@@ -252,5 +257,53 @@ export interface AcademySettings {
   /** Minutes before start that students may join a live class (default 15). */
   joinWindowMinutes?: number;
   certificateCriteria: { minLessonPercent: number; requireAssignments: boolean; minAssignmentPercent: number };
+  updatedAt?: DateValue;
+}
+
+export type ResourceKindId = 'roadmap' | 'lecture' | 'slides' | 'notes' | 'worksheet' | 'project' | 'link' | 'other';
+
+/** Metadata for a learning resource; the file itself lives in private storage. */
+export interface Resource {
+  id: string;
+  courseId: string;
+  batchId: string;
+  kind: ResourceKindId;
+  title: string;
+  description?: string;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+  externalUrl?: string;
+  allowDownload: boolean;
+  published: boolean;
+  archived: boolean;
+  order: number;
+  version: number;
+  uploadedBy: string;
+  uploadedByName?: string;
+  createdAt?: DateValue;
+  updatedAt?: DateValue;
+  replacedAt?: DateValue;
+}
+
+export interface ClassNote {
+  id: string;
+  courseId: string;
+  batchId: string;
+  sessionId?: string;
+  instructorId: string;
+  authorName?: string;
+  title: string;
+  description?: string;
+  date?: string;
+  moduleTitle?: string;
+  content: string;
+  attachmentIds: string[];
+  links: { label: string; url: string }[];
+  status: 'draft' | 'published';
+  revision?: number;
+  editedBy?: string;
+  publishedAt?: DateValue;
+  createdAt?: DateValue;
   updatedAt?: DateValue;
 }

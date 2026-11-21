@@ -112,6 +112,11 @@ export function validateSessionInput(body: unknown):
       durationMinutes: number;
       meetingUrl: string;
       status: StoredSessionStatus;
+      description: string;
+      moduleTitle: string;
+      /** minutes before start that students may join; undefined = academy default */
+      joinWindowMinutes?: number;
+      published: boolean;
     }
   | { ok: false; error: string } {
   if (!body || typeof body !== 'object') return { ok: false, error: 'Invalid request.' };
@@ -133,6 +138,14 @@ export function validateSessionInput(body: unknown):
   if (!meetingUrl) return { ok: false, error: 'Paste a valid Google Meet link (https://meet.google.com/abc-defg-hij).' };
   const status = (b.status ?? 'scheduled') as StoredSessionStatus;
   if (!['scheduled', 'completed', 'cancelled'].includes(status)) return { ok: false, error: 'Invalid status.' };
+  const clip = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n) : '');
+  let joinWindowMinutes: number | undefined;
+  if (b.joinWindowMinutes !== undefined && b.joinWindowMinutes !== null && b.joinWindowMinutes !== '') {
+    joinWindowMinutes = Number(b.joinWindowMinutes);
+    if (!Number.isInteger(joinWindowMinutes) || joinWindowMinutes < 0 || joinWindowMinutes > 240) {
+      return { ok: false, error: 'The joining window must be 0–240 minutes.' };
+    }
+  }
   return {
     ok: true,
     batchId: b.batchId,
@@ -142,6 +155,10 @@ export function validateSessionInput(body: unknown):
     durationMinutes: duration,
     meetingUrl,
     status,
+    description: clip(b.description, 500),
+    moduleTitle: clip(b.moduleTitle, 100),
+    joinWindowMinutes,
+    published: b.published !== false,
   };
 }
 

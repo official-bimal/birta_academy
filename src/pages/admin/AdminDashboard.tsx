@@ -14,6 +14,7 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
+import { AdminCatalogPanel } from './AdminCatalogPanel';
 import { InviteInstructorPanel } from '../../components/InviteInstructorPanel';
 import { DashboardShell, type DashboardNavItem } from '../../components/DashboardShell';
 import { useAuth } from '../../context/AuthContext';
@@ -23,9 +24,7 @@ import {
   adminReviewEnrollment,
   adminToggleCertificateStatus,
   adminUpdateInquiryStatus,
-  deleteBatch,
   deleteCategory,
-  deleteCourse,
   fetchAcademySettings,
   fetchAdminCatalog,
   listAllCertificates,
@@ -34,11 +33,8 @@ import {
   listAllUsers,
   listAuditLogs,
   saveAcademySettings,
-  saveBatch,
   saveCategory,
-  saveCourse,
   saveInstructorProfile,
-  seedSampleCatalog,
 } from '../../lib/firestoreService';
 import { parseFirestoreErrorMessage } from '../../lib/firebase';
 import { ApiError } from '../../lib/api';
@@ -240,103 +236,6 @@ export function AdminDashboard() {
     [enrollments]
   );
 
-  const handleSeedDemo = async () => {
-    if (!profile) return;
-    setBusyAction('seed');
-    setErrorMsg(null);
-    setNotice(null);
-    try {
-      await seedSampleCatalog(profile);
-      await Promise.all([loadAdminData(), refreshCatalog()]);
-      setNotice(
-        'Sample Birta Academy categories, courses, batches, lessons, and live sessions seeded into Firestore (marked isDemo: true).'
-      );
-    } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleSaveCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile) return;
-    const cat = categories.find((c) => c.id === courseForm.categoryId);
-    const inst = instructors.find((i) => i.id === courseForm.instructorId);
-    if (!cat || !inst) {
-      setErrorMsg('Please create or select both a Category and an Instructor first.');
-      return;
-    }
-    setBusyAction('course');
-    setErrorMsg(null);
-    setNotice(null);
-    try {
-      await saveCourse(
-        {
-          id: editingCourseId || undefined,
-          title: courseForm.title,
-          subtitle: courseForm.subtitle,
-          categoryId: cat.id,
-          categoryName: cat.name,
-          instructorId: inst.id,
-          instructorName: inst.displayName,
-          level: courseForm.level,
-          durationWeeks: courseForm.durationWeeks,
-          priceNpr: courseForm.priceNpr,
-          thumbnailUrl: courseForm.thumbnailUrl,
-          description: courseForm.description,
-          outcomes: sanitizeStringList(courseForm.outcomesText, 10),
-          syllabus: sanitizeStringList(courseForm.syllabusText, 15),
-          published: courseForm.published,
-          featured: courseForm.featured,
-          isDemo: courseForm.isDemo,
-        },
-        profile
-      );
-      setEditingCourseId(null);
-      setCourseForm((p) => ({ ...p, title: '', subtitle: '', description: '' }));
-      await Promise.all([loadAdminData(), refreshCatalog()]);
-      setNotice('Course saved and recorded in audit log.');
-    } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleEditCourse = (c: Course) => {
-    setEditingCourseId(c.id);
-    setCourseForm({
-      title: c.title,
-      subtitle: c.subtitle,
-      categoryId: c.categoryId,
-      instructorId: c.instructorId,
-      level: c.level,
-      durationWeeks: c.durationWeeks,
-      priceNpr: c.priceNpr,
-      thumbnailUrl: c.thumbnailUrl || MEDIA_ASSETS.engineeringAi,
-      description: c.description,
-      outcomesText: c.outcomes.join('\n'),
-      syllabusText: c.syllabus.join('\n'),
-      published: c.published,
-      featured: c.featured,
-      isDemo: c.isDemo,
-    });
-    setActiveTab('courses');
-  };
-
-  const handleDeleteCourse = async (c: Course) => {
-    if (!profile) return;
-    setErrorMsg(null);
-    try {
-      await deleteCourse(c.id, c.title, profile);
-      await Promise.all([loadAdminData(), refreshCatalog()]);
-      setNotice(`Deleted course "${c.title}".`);
-    } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
-    }
-  };
-
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -347,47 +246,6 @@ export function AdminDashboard() {
       setCatForm({ name: '', description: '', sortOrder: categories.length + 1, active: true });
       await Promise.all([loadAdminData(), refreshCatalog()]);
       setNotice('Category saved.');
-    } catch (err) {
-      setErrorMsg(parseFirestoreErrorMessage(err));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleSaveBatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile) return;
-    const course = courses.find((c) => c.id === batchForm.courseId);
-    const inst = instructors.find((i) => i.id === (batchForm.instructorId || course?.instructorId));
-    if (!course) {
-      setErrorMsg('Please select an existing course before scheduling a batch.');
-      return;
-    }
-    setBusyAction('batch');
-    setErrorMsg(null);
-    try {
-      await saveBatch(
-        {
-          courseId: course.id,
-          courseTitle: course.title,
-          courseSlug: course.slug,
-          instructorId: inst?.id || course.instructorId,
-          instructorName: inst?.displayName || course.instructorName,
-          name: batchForm.name,
-          startDate: batchForm.startDate,
-          endDate: batchForm.endDate,
-          scheduleText: batchForm.scheduleText,
-          timezone: batchForm.timezone,
-          seatLimit: batchForm.seatLimit,
-          priceNpr: batchForm.priceNpr,
-          status: batchForm.status,
-          isDemo: batchForm.isDemo,
-        },
-        profile
-      );
-      setBatchForm((p) => ({ ...p, name: '' }));
-      await Promise.all([loadAdminData(), refreshCatalog()]);
-      setNotice('Live batch scheduled and logged.');
     } catch (err) {
       setErrorMsg(parseFirestoreErrorMessage(err));
     } finally {
@@ -484,8 +342,7 @@ export function AdminDashboard() {
   const navItems: DashboardNavItem[] = [
     { id: 'overview', label: 'Academy Overview', icon: LayoutDashboard },
     { id: 'enrollments', label: 'Enrollments & Payments', icon: CreditCard, count: pendingEnrollmentsCount },
-    { id: 'courses', label: 'Courses CRUD', icon: BookOpen, count: courses.length },
-    { id: 'batches', label: 'Batch Scheduling', icon: Calendar, count: batches.length },
+    { id: 'courses', label: 'Courses & Batches', icon: BookOpen, count: courses.length },
     { id: 'categories', label: 'Categories', icon: FolderKanban, count: categories.length },
     { id: 'instructors', label: 'Instructors', icon: UserCheck, count: instructors.length },
     { id: 'users', label: 'Students & Roles', icon: Users, count: users.length },
@@ -505,17 +362,6 @@ export function AdminDashboard() {
         setActiveTab(id);
         setNotice(null);
       }}
-      headerAction={
-        <button
-          type="button"
-          disabled={busyAction === 'seed'}
-          onClick={() => void handleSeedDemo()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
-        >
-          <Database className="w-3.5 h-3.5" />
-          <span>{busyAction === 'seed' ? 'Seeding...' : 'Seed Sample Catalog'}</span>
-        </button>
-      }
     >
       {errorMsg && (
         <div
@@ -581,18 +427,16 @@ export function AdminDashboard() {
                       Firestore Catalog Is Empty
                     </h2>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                      Seed the starter clearly-labeled Birta Academy sample dataset (6 categories, 6
-                      courses, 4 live batches, lessons, and live sessions) or create your first live
-                      course manually.
+                      Create your first course, open a batch and assign an instructor. The public
+                      website shows labelled sample content until then.
                     </p>
                   </div>
                   <button
                     type="button"
-                    disabled={busyAction === 'seed'}
-                    onClick={() => void handleSeedDemo()}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white whitespace-nowrap shrink-0"
+                    onClick={() => setActiveTab('courses')}
+                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white whitespace-nowrap shrink-0"
                   >
-                    {busyAction === 'seed' ? 'Seeding Catalog...' : 'Seed Sample Catalog'}
+                    Create your first course
                   </button>
                 </div>
               )}
@@ -733,382 +577,18 @@ export function AdminDashboard() {
 
           {/* COURSES CRUD */}
           {activeTab === 'courses' && (
-            <div className="space-y-6">
-              <form
-                onSubmit={handleSaveCourse}
-                className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4"
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display text-base font-semibold text-slate-950 dark:text-white">
-                    {editingCourseId ? 'Edit Course' : 'Create New Course'}
-                  </h2>
-                  {editingCourseId && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingCourseId(null)}
-                      className="text-xs text-slate-500 hover:underline"
-                    >
-                      Cancel edit
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    required
-                    maxLength={140}
-                    placeholder="Course Title"
-                    value={courseForm.title}
-                    onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="text"
-                    required
-                    maxLength={220}
-                    placeholder="Short Subtitle"
-                    value={courseForm.subtitle}
-                    onChange={(e) => setCourseForm((p) => ({ ...p, subtitle: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <select
-                    required
-                    value={courseForm.categoryId}
-                    onChange={(e) => setCourseForm((p) => ({ ...p, categoryId: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    required
-                    value={courseForm.instructorId}
-                    onChange={(e) => setCourseForm((p) => ({ ...p, instructorId: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  >
-                    <option value="">Select Instructor</option>
-                    {instructors.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <select
-                    value={courseForm.level}
-                    onChange={(e) =>
-                      setCourseForm((p) => ({ ...p, level: e.target.value as CourseLevel }))
-                    }
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    max={52}
-                    placeholder="Weeks"
-                    value={courseForm.durationWeeks}
-                    onChange={(e) =>
-                      setCourseForm((p) => ({ ...p, durationWeeks: Number(e.target.value) }))
-                    }
-                    className="px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    max={500000}
-                    placeholder="Price (NPR)"
-                    value={courseForm.priceNpr}
-                    onChange={(e) =>
-                      setCourseForm((p) => ({ ...p, priceNpr: Number(e.target.value) }))
-                    }
-                    className="px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <select
-                    value={courseForm.thumbnailUrl}
-                    onChange={(e) => setCourseForm((p) => ({ ...p, thumbnailUrl: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  >
-                    <option value={MEDIA_ASSETS.engineeringAi}>Cover: Engineering &amp; AI</option>
-                    <option value={MEDIA_ASSETS.tradingDesk}>Cover: Trading Desk</option>
-                    <option value={MEDIA_ASSETS.creativeStudio}>Cover: Creative Studio</option>
-                    <option value={MEDIA_ASSETS.growthMarketing}>Cover: Growth Marketing</option>
-                  </select>
-                </div>
-
-                <textarea
-                  required
-                  rows={3}
-                  maxLength={2000}
-                  placeholder="Full course overview description..."
-                  value={courseForm.description}
-                  onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">
-                      Learning Outcomes (one per line, max 10)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={courseForm.outcomesText}
-                      onChange={(e) =>
-                        setCourseForm((p) => ({ ...p, outcomesText: e.target.value }))
-                      }
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">
-                      Syllabus Modules (one per line, max 15)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={courseForm.syllabusText}
-                      onChange={(e) =>
-                        setCourseForm((p) => ({ ...p, syllabusText: e.target.value }))
-                      }
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-6 text-xs text-slate-700 dark:text-slate-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={courseForm.published}
-                      onChange={(e) =>
-                        setCourseForm((p) => ({ ...p, published: e.target.checked }))
-                      }
-                    />
-                    <span>Published to Public Catalog</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={courseForm.featured}
-                      onChange={(e) =>
-                        setCourseForm((p) => ({ ...p, featured: e.target.checked }))
-                      }
-                    />
-                    <span>Featured on Homepage</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={courseForm.isDemo}
-                      onChange={(e) => setCourseForm((p) => ({ ...p, isDemo: e.target.checked }))}
-                    />
-                    <span>Mark as Demo Sample</span>
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={busyAction === 'course'}
-                  className="px-5 py-2.5 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  {editingCourseId ? 'Update Course' : 'Save Course'}
-                </button>
-              </form>
-
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-200 dark:divide-slate-800">
-                {courses.map((c) => (
-                  <div key={c.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs text-slate-500">
-                        {c.categoryName} · {c.level} · {c.published ? 'Published' : 'Draft'}
-                        {c.isDemo ? ' · Demo' : ''}
-                      </p>
-                      <h3 className="font-semibold text-sm text-slate-950 dark:text-white mt-0.5">
-                        {c.title}
-                      </h3>
-                      <p className="text-xs font-mono text-slate-500 mt-0.5">
-                        {formatNpr(c.priceNpr)} · /{c.slug}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleEditCourse(c)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteCourse(c)}
-                        aria-label={`Delete ${c.title}`}
-                        className="p-1.5 text-slate-400 hover:text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {courses.length === 0 && (
-                  <p className="p-6 text-sm text-slate-500 text-center">No courses in Firestore yet.</p>
-                )}
-              </div>
-            </div>
+            <AdminCatalogPanel
+              courses={courses}
+              batches={batches}
+              categories={categories}
+              users={users}
+              enrollments={enrollments}
+              onChanged={async () => {
+                await Promise.all([loadAdminData(), refreshCatalog()]);
+              }}
+            />
           )}
 
-          {/* BATCH SCHEDULING */}
-          {activeTab === 'batches' && (
-            <div className="space-y-6">
-              <form
-                onSubmit={handleSaveBatch}
-                className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4"
-              >
-                <h2 className="font-display text-base font-semibold text-slate-950 dark:text-white">
-                  Schedule Live Cohort Batch
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <select
-                    required
-                    value={batchForm.courseId}
-                    onChange={(e) => {
-                      const c = courses.find((item) => item.id === e.target.value);
-                      setBatchForm((p) => ({
-                        ...p,
-                        courseId: e.target.value,
-                        instructorId: c?.instructorId || p.instructorId,
-                        priceNpr: c?.priceNpr ?? p.priceNpr,
-                      }));
-                    }}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  >
-                    <option value="">Select Course</option>
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Batch name (e.g. Batch 02 — Evening Live Cohort)"
-                    value={batchForm.name}
-                    onChange={(e) => setBatchForm((p) => ({ ...p, name: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="date"
-                    required
-                    value={batchForm.startDate}
-                    onChange={(e) => setBatchForm((p) => ({ ...p, startDate: e.target.value }))}
-                    className="px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="date"
-                    required
-                    value={batchForm.endDate}
-                    onChange={(e) => setBatchForm((p) => ({ ...p, endDate: e.target.value }))}
-                    className="px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Schedule (e.g. Sun, Tue, Thu · 7:30 PM)"
-                    value={batchForm.scheduleText}
-                    onChange={(e) => setBatchForm((p) => ({ ...p, scheduleText: e.target.value }))}
-                    className="px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                  />
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      max={500}
-                      placeholder="Seats"
-                      value={batchForm.seatLimit}
-                      onChange={(e) =>
-                        setBatchForm((p) => ({ ...p, seatLimit: Number(e.target.value) }))
-                      }
-                      className="px-3 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      max={500000}
-                      placeholder="NPR"
-                      value={batchForm.priceNpr}
-                      onChange={(e) =>
-                        setBatchForm((p) => ({ ...p, priceNpr: Number(e.target.value) }))
-                      }
-                      className="px-3 py-2 text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                    />
-                    <select
-                      value={batchForm.status}
-                      onChange={(e) =>
-                        setBatchForm((p) => ({ ...p, status: e.target.value as BatchStatus }))
-                      }
-                      className="px-2 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                    >
-                      <option value="upcoming">Upcoming</option>
-                      <option value="ongoing">Ongoing</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={busyAction === 'batch'}
-                  className="px-5 py-2 text-xs font-semibold rounded-lg bg-slate-950 dark:bg-brand-600 text-white"
-                >
-                  Create Live Batch
-                </button>
-              </form>
-
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-200 dark:divide-slate-800">
-                {batches.map((b) => (
-                  <div key={b.id} className="p-5 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs text-slate-500 capitalize">
-                        {b.status} · {formatDateValue(b.startDate)} – {formatDateValue(b.endDate)} ·{' '}
-                        {formatNpr(b.priceNpr)}
-                      </p>
-                      <p className="font-semibold text-sm text-slate-950 dark:text-white mt-0.5">
-                        {b.courseTitle} — {b.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {b.scheduleText} ({b.timezone}) · Instructor: {b.instructorName}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (profile) {
-                          void deleteBatch(b.id, b.name, profile).then(() => {
-                            void loadAdminData();
-                            void refreshCatalog();
-                          });
-                        }
-                      }}
-                      className="p-2 text-slate-400 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CATEGORIES */}
           {activeTab === 'categories' && (
             <div className="space-y-6">
               <form

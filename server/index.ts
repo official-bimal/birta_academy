@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminApp, adminDb, credentialsConfigured } from './firebaseAdmin.ts';
+import { registerLms } from './lms.ts';
 import {
   canResubmit,
   evaluateCertificateEligibility,
@@ -466,6 +467,10 @@ app.post('/api/staff/sessions', sensitiveLimiter, requireAuth, requireBatchStaff
         meetingPlatform: 'Google Meet',
         hasMeetingLink: true,
         status: parsed.status,
+        description: parsed.description,
+        moduleTitle: parsed.moduleTitle,
+        published: parsed.published,
+        joinWindowMinutes: parsed.joinWindowMinutes ?? FieldValue.delete(),
         updatedAt: FieldValue.serverTimestamp(),
         ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp(), hasRecording: false }),
       },
@@ -585,8 +590,9 @@ app.post('/api/sessions/access', initLimiter, requireAuth, async (req, res) => {
         scheduledStart: session.scheduledStart,
         durationMinutes: session.durationMinutes,
         status: session.status as StoredSessionStatus,
-        joinWindowMinutes: await joinWindowMinutes(),
+        joinWindowMinutes: Math.min(Number.isFinite(Number(session.joinWindowMinutes)) ? Number(session.joinWindowMinutes) : Infinity, await joinWindowMinutes()),
       });
+      if (session.published === false) return res.status(404).json({ error: 'Session not found.' });
       if (!canJoin(phase)) {
         return res.status(403).json({ error: phase === 'upcoming' ? 'The class link opens shortly before the start time.' : 'This class is not open for joining.' });
       }
@@ -804,6 +810,22 @@ app.post('/api/admin/certificates/:id/status', sensitiveLimiter, requireAuth, re
   }
 });
 
+
+
+registerLms({
+  app,
+  db: adminDb,
+  auth,
+  requireAuth,
+  requireRole,
+  requireBatchStaff,
+  limiter: sensitiveLimiter,
+  audit,
+  HttpError: HttpError as never,
+  handleError,
+  loadManagedBatch,
+  occupying: OCCUPYING,
+});
 
 // ---------------------------------------------------------------------------
 // Production: serve the built SPA from the same origin (so /api needs no CORS)
